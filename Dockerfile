@@ -15,7 +15,6 @@ COPY src ./src
 COPY index.html ./
 COPY backend ./backend
 COPY server.ts ./
-COPY data_db.json ./
 
 # Compile both Frontend SPA (Vite) and Backend Server bundle (esbuild)
 RUN npm run build
