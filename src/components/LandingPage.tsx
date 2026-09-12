@@ -237,7 +237,7 @@ export default function LandingPage({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55, delay: 0.35 }}
             onClick={() => onSelectRole('patient')}
-            className="landing-role-card sante-card p-5 sm:p-5 lg:p-6 flex flex-col items-center text-center group cursor-pointer bg-white relative overflow-hidden"
+            className="landing-role-card landing-role-card-patient sante-card p-5 sm:p-5 lg:p-6 flex flex-col items-center text-center group cursor-pointer bg-white relative overflow-hidden"
           >
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-[#008000]"></div>
             <div className="w-14 h-14 rounded-2xl bg-white border border-[#008000] flex items-center justify-center text-[#008000] mb-3 shadow-none">
@@ -262,7 +262,7 @@ export default function LandingPage({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55, delay: 0.44 }}
             onClick={() => onSelectRole('doctor')}
-            className="landing-role-card sante-card p-5 sm:p-5 lg:p-6 flex flex-col items-center text-center group cursor-pointer bg-white relative overflow-hidden"
+            className="landing-role-card landing-role-card-doctor sante-card p-5 sm:p-5 lg:p-6 flex flex-col items-center text-center group cursor-pointer bg-white relative overflow-hidden"
           >
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-[#008000]"></div>
             <div className="w-14 h-14 rounded-2xl bg-white border border-[#008000] flex items-center justify-center text-[#008000] mb-3 shadow-none">
@@ -287,7 +287,7 @@ export default function LandingPage({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55, delay: 0.53 }}
             onClick={() => onSelectRole('hospital')}
-            className="landing-role-card sante-card p-5 sm:p-5 lg:p-6 flex flex-col items-center text-center group cursor-pointer bg-white relative overflow-hidden"
+            className="landing-role-card landing-role-card-hospital sante-card p-5 sm:p-5 lg:p-6 flex flex-col items-center text-center group cursor-pointer bg-white relative overflow-hidden"
           >
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-[#008000]"></div>
             <div className="w-14 h-14 rounded-2xl bg-white border border-[#008000] flex items-center justify-center text-[#008000] mb-3 shadow-none">
