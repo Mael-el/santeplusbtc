@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://santeplus-api.onrender.com/api/:path*"
+      "destination": "https://santeplus-api-telq.onrender.com/api/:path*"
     },
     {
       "source": "/(.*)",
