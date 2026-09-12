@@ -5,6 +5,7 @@ import {
   Pill, QrCode, Search, ShieldCheck, Stethoscope, UserPlus, Users, X,
 } from 'lucide-react';
 import QRScannerModal, { DecodedPatientData } from '../common/QRScannerModal';
+import { jsPDF } from 'jspdf';
 import {
   addDoctorPatient,
   createAnonymousPatient as createAnonymousPatientApi,
@@ -151,6 +152,32 @@ export default function ClinicalWorkspace({ doctorData }: { doctorData: DoctorDa
     }).catch(() => undefined);
   };
 
+  const exportDossierPdf = () => {
+    if (!selectedPatient || !dossier) return;
+    const pdf = new jsPDF();
+    let y = 20;
+    const line = (text: string, size = 10) => {
+      pdf.setFontSize(size);
+      const lines = pdf.splitTextToSize(text, 175);
+      pdf.text(lines, 18, y);
+      y += lines.length * 6 + 3;
+      if (y > 275) { pdf.addPage(); y = 20; }
+    };
+    pdf.setTextColor(8, 127, 91);
+    line('SANTE+ BENIN - DOSSIER MEDICAL', 16);
+    pdf.setTextColor(24, 51, 43);
+    line(`Patient : ${dossier.patientName}`, 12);
+    line(`NPI : ${selectedPatient.npi || 'Non attribue'} | Age : ${dossier.age || 'Non renseigne'} ans`);
+    line(`Groupe sanguin : ${dossier.blood} | Allergies : ${dossier.allergies}`);
+    line(`Consultations : ${dossier.consultations.length} | Ordonnances : ${dossier.prescriptions.length}`);
+    line('HISTORIQUE DES CONSULTATIONS', 12);
+    dossier.consultations.forEach(item => line(`${item.date} - ${item.doctorName}: ${item.diagnostic}. Prescription: ${item.prescription || 'Aucune'}`));
+    line('ORDONNANCES', 12);
+    dossier.prescriptions.forEach(item => line(`${item.date} - ${item.medication} ${item.dosage || ''} ${item.frequency || ''} (${item.status})`));
+    line(`Document genere le ${new Date().toLocaleString('fr-FR')}`);
+    pdf.save(`dossier-${selectedPatient.npi || selectedPatient.id}.pdf`);
+  };
+
   useEffect(() => {
     if (phase !== 'consultation' || !selectedPatient) return;
     const hasContent = Object.values(form).some(Boolean);
@@ -261,7 +288,7 @@ export default function ClinicalWorkspace({ doctorData }: { doctorData: DoctorDa
         <main className="mx-auto max-w-6xl">
           <button onClick={() => setPhase('identify')} className="mb-5 flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-emerald-700"><ArrowLeft className="h-4 w-4" />Changer de patient</button>
           <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-            <div className="flex flex-col justify-between gap-4 sm:flex-row"><div><p className="text-sm font-bold text-emerald-700">Étape 2 sur 3 · Dossier chargé</p><h1 className="mt-1 text-3xl font-black text-slate-900">{selectedPatient.name}</h1><p className="mt-1 text-sm text-slate-500">{selectedPatient.age || 'Âge non renseigné'} ans · {selectedPatient.blood} · {dossier.allergies}</p></div><button onClick={startConsultation} className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 font-black text-white hover:bg-emerald-700"><Stethoscope className="h-5 w-5" />Démarrer une consultation</button></div>
+            <div className="flex flex-col justify-between gap-4 sm:flex-row"><div><p className="text-sm font-bold text-emerald-700">Étape 2 sur 3 · Dossier chargé</p><h1 className="mt-1 text-3xl font-black text-slate-900">{selectedPatient.name}</h1><p className="mt-1 text-sm text-slate-500">{selectedPatient.age || 'Âge non renseigné'} ans · {selectedPatient.blood} · {dossier.allergies}</p></div><div className="flex flex-wrap gap-2"><button onClick={exportDossierPdf} className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 font-black text-slate-700 hover:border-emerald-400"><FileText className="h-5 w-5" />Exporter le dossier</button><button onClick={startConsultation} className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 font-black text-white hover:bg-emerald-700"><Stethoscope className="h-5 w-5" />Démarrer une consultation</button></div></div>
             <div className="mt-7 grid gap-4 md:grid-cols-3"><div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs text-slate-500">Consultations</p><p className="mt-1 text-2xl font-black">{dossier.consultations.length}</p></div><div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs text-slate-500">Ordonnances</p><p className="mt-1 text-2xl font-black">{dossier.prescriptions.length}</p></div><div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs text-slate-500">NPI</p><p className="mt-1 font-mono font-bold">{selectedPatient.npi || 'Non attribué'}</p></div></div>
             <div className="mt-7"><h2 className="text-lg font-black text-slate-900">Historique médical</h2>{dossier.consultations.length ? <div className="mt-3 space-y-2">{dossier.consultations.map(item => <div key={item.id} className="rounded-xl border border-slate-200 p-3"><p className="font-bold">{item.diagnostic}</p><p className="text-xs text-slate-500">{item.date} · {item.doctorName}</p></div>)}</div> : <p className="mt-3 rounded-xl border border-dashed border-slate-300 p-5 text-sm text-slate-500">Aucun antécédent enregistré.</p>}</div>
           </div>

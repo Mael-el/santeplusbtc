@@ -48,7 +48,8 @@ export default function QRScannerModal({
         raw: text,
         npi: data['NPI'] || data['PATIENTNPI'] || data['PATIENT_NPI'] || data['SANTE-PLUS-BENIN:NPI'],
         name: data['PATIENT'],
-        blood: data['BLOOD']
+        blood: data['BLOOD'],
+        id: data['ID'] || data['PATIENTID'] || data['PATIENT_ID'],
       };
     }
 

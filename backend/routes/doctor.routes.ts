@@ -310,7 +310,7 @@ router.post('/patients/access', requireAuth, requireRole('doctor', 'admin'), asy
                 COALESCE(p.allergies, 'Aucune') AS allergies
          FROM patients p
          JOIN users u ON u.id = p.user_id
-        WHERE p.id::text = $1::text
+        WHERE p.id::text = $1::text OR p.npi = $1 OR u.email = $1 OR u.phone = $1
          LIMIT 1`,
         [identity.patientId]
       );
@@ -927,7 +927,8 @@ router.get('/patient/:patientId/dossier', requireAuth, requireRole('doctor', 'ad
                 COALESCE(p.allergies, 'Aucune') AS allergies
          FROM patients p
          JOIN doctor_patients dp ON dp.patient_id = p.id
-         WHERE p.id::text = $1 AND dp.doctor_user_id = $2 LIMIT 1`,
+         WHERE (p.id::text = $1 OR p.npi = $1 OR p.user_id::text = $1)
+           AND dp.doctor_user_id = $2 LIMIT 1`,
         [patientId, req.userId]
       );
       const patient = patientResult?.rows[0];
@@ -938,11 +939,11 @@ router.get('/patient/:patientId/dossier', requireAuth, requireRole('doctor', 'ad
           TO_CHAR(created_at, 'HH24:MI') AS time, patient_name AS "patientName",
           diagnostic, prescription, notes, blockchain_hash AS "blockchainHash",
           ipfs_cid AS "ipfsCid" FROM doctor_consultations
-          WHERE patient_id = $1 AND doctor_user_id = $2 ORDER BY created_at DESC`, [patientId, req.userId]),
+          WHERE patient_id = $1 ORDER BY created_at DESC`, [patientId]),
         dbService.query<any>(`SELECT id, medication, dosage, frequency, status,
           patient_name AS "patientName", TO_CHAR(created_at, 'DD/MM/YYYY') AS date
-          FROM doctor_prescriptions WHERE patient_id = $1 AND doctor_user_id = $2
-          ORDER BY created_at DESC`, [patientId, req.userId]),
+          FROM doctor_prescriptions WHERE patient_id = $1
+          ORDER BY created_at DESC`, [patientId]),
       ]);
       await dbService.query(
         `INSERT INTO doctor_audit_logs (id, doctor_user_id, action, patient_name, details, tx_hash)

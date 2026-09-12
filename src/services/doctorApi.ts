@@ -7,7 +7,7 @@ const API_BASE = '/api/doctors';
 
 // Helper pour obtenir le token JWT depuis le localStorage
 function getAuthToken(): string | null {
-  return null;
+  return localStorage.getItem('sante_hospital_token') || localStorage.getItem('sante_access_token');
 }
 
 // Helper pour les headers authentifiés

@@ -167,6 +167,7 @@ export default function App() {
     localStorage.removeItem('sante_patient_email');
     localStorage.removeItem('sante_patient_profile');
     localStorage.removeItem('sante_hospital_user');
+    localStorage.removeItem('sante_hospital_token');
     setPatientUser(null);
     setHospitalUser(null);
     setView('landing');

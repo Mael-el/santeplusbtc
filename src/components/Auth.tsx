@@ -170,6 +170,7 @@ export default function Auth({
           name: data.name || 'Médecin Praticien',
           token: data.token
         };
+        localStorage.setItem('sante_hospital_token', data.token);
         setSuccessMsg(`Session médicale validée (${docUser.name})`);
         speakInstruction(`Session validée.`);
         setTimeout(() => onHospitalLogin(docUser), 600);
@@ -302,8 +303,9 @@ export default function Auth({
           hospitalId: doctorHospitalId,
           role: 'doctor',
           name: docFullName,
-          token: data.data?.accessToken
+          token: data.token || data.data?.accessToken
         };
+        if (newDoctor.token) localStorage.setItem('sante_hospital_token', newDoctor.token);
         setSuccessMsg(`Compte Médecin attesté créé avec succès ! Bienvenue ${docFullName}.`);
         speakInstruction(`Compte médecin validé.`);
         setTimeout(() => onHospitalLogin(newDoctor), 800);
