@@ -355,6 +355,19 @@ export default function Auth({
     }
   };
 
+  const continuePatientSecurityStep = () => {
+    setErrorMsg('');
+    if (signupPatientPhone.trim().length < 8) {
+      setErrorMsg('Veuillez saisir un numéro de téléphone valide.');
+      return;
+    }
+    if (patientSignupPassword.length < 8) {
+      setErrorMsg('Le mot de passe doit contenir au moins 8 caractères.');
+      return;
+    }
+    setStep(3);
+  };
+
   return (
     <div className="w-full flex flex-col items-center justify-center p-4 sm:p-6">
       
@@ -702,12 +715,12 @@ export default function Auth({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Code PIN ou Mot de passe</label>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Mot de passe (8 caractères minimum)</label>
                     <input
                       type="password"
                       value={patientSignupPassword}
                       onChange={(e) => setPatientSignupPassword(e.target.value)}
-                      placeholder="••••"
+                      placeholder="SantePlus2026"
                       className="w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs sm:text-sm"
                     />
                   </div>
@@ -719,7 +732,7 @@ export default function Auth({
 
                   <div className="pt-3 flex justify-between">
                     <button type="button" onClick={() => setStep(1)} className="px-5 py-2.5 bg-gray-100 text-gray-700 font-bold rounded-2xl text-xs cursor-pointer">Précédent</button>
-                    <button type="button" onClick={() => setStep(3)} className="px-8 py-3 bg-[#059669] text-white font-bold rounded-2xl text-xs sm:text-sm flex items-center gap-2 cursor-pointer">
+                    <button type="button" onClick={continuePatientSecurityStep} className="px-8 py-3 bg-[#059669] text-white font-bold rounded-2xl text-xs sm:text-sm flex items-center gap-2 cursor-pointer">
                       <span>Continuer</span> <ArrowRight className="w-4 h-4" />
                     </button>
                   </div>
