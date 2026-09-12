@@ -113,10 +113,10 @@ export default function Auth({
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
+          body: JSON.stringify({
             phone: patientPhone.includes('@') ? undefined : patientPhone,
             email: patientPhone.includes('@') ? patientPhone : undefined,
-            password 
+            password,
           })
         });
         const data = await res.json();
@@ -370,6 +370,17 @@ export default function Auth({
 
   return (
     <div className="w-full flex flex-col items-center justify-center p-4 sm:p-6">
+      {errorMsg && (
+        <div className="w-full max-w-lg mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 font-sans">
+          {errorMsg}
+        </div>
+      )}
+      {successMsg && (
+        <div className="w-full max-w-lg mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-700 font-sans flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>{successMsg}</span>
+        </div>
+      )}
       
       {/* ---------------------------------------------------- */}
       {/* 1. ÉCRAN DE CONNEXION UNIQUE SELON LE RÔLE           */}
@@ -401,19 +412,6 @@ export default function Auth({
               {currentRole === 'hospital' && "Direction & Établissements Hospitaliers"}
             </p>
           </div>
-
-          {/* Messages d'Alerte */}
-          {errorMsg && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 font-sans">
-              {errorMsg}
-            </div>
-          )}
-          {successMsg && (
-            <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-700 font-sans flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>{successMsg}</span>
-            </div>
-          )}
 
           {/* Formulaire de Connexion Strictement Dédié */}
           <form onSubmit={handleSignInSubmit} className="space-y-4">
