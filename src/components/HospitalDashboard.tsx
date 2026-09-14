@@ -138,7 +138,7 @@ export default function HospitalDashboard({
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto flex flex-col font-sans pb-8">
+    <div className="role-dashboard w-full max-w-6xl mx-auto flex flex-col font-sans pb-8">
 
       {/* ---------------------------------------------------- */}
       {/* EN-TÊTE DU POSTE CLINIQUE (COMPACT & MÉDICAL)        */}

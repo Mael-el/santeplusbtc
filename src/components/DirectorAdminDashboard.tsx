@@ -161,7 +161,7 @@ export default function DirectorAdminDashboard({
   });
 
   return (
-    <div className="w-full max-w-6xl mx-auto flex flex-col font-sans pb-16">
+    <div className="role-dashboard w-full max-w-6xl mx-auto flex flex-col font-sans pb-16">
       
       {/* ---------------------------------------------------- */}
       {/* TOP HEADER ADMIN / DIRECTEUR (COMPACT & MÉDICAL)     */}

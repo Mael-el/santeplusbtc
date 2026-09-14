@@ -434,14 +434,6 @@ async function startServer() {
   }
   loadDb();
   await dbService.testAndInit();
-  if (dbService.getStatus().connected && process.env.INITIAL_ADMIN_PASSWORD) {
-    await dbService.query(
-      `INSERT INTO users (email, phone, password_hash, role)
-       VALUES ('admin@santeplus.bj', '+229 21 00 00 01', $1, 'superadmin')
-       ON CONFLICT (email) DO UPDATE SET role = 'superadmin', password_hash = EXCLUDED.password_hash`,
-      [bcrypt.hashSync(process.env.INITIAL_ADMIN_PASSWORD, 10)]
-    );
-  }
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', 1);
@@ -479,7 +471,8 @@ async function startServer() {
   app.use(cors({
     credentials: true,
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
+      const isLocalDevelopmentOrigin = /^https?:\/\/(localhost|127\.0\.0\.1|10\.0\.2\.2)(:\d+)?$/.test(origin || '');
+      if (!origin || allowedOrigins.includes(origin) || isLocalDevelopmentOrigin) {
         return callback(null, true);
       }
       return callback(new Error('Origin not allowed by CORS'));
@@ -583,7 +576,7 @@ async function startServer() {
   });
 
   // 1b. POST REGISTER NEW HOSPITAL (PENDING VERIFICATION)
-  app.post("/api/hospitals/register", (req, res) => {
+  app.post("/api/hospitals/register", async (req, res) => {
     const { name, type, address, phone, hours, email, password } = req.body;
     
     if (!name || !email || !password) {
@@ -591,9 +584,20 @@ async function startServer() {
     }
 
     const normalizedEmail = email.toLowerCase().trim();
-    const userExists = HOSPITAL_USERS_DB.some(u => u.email === normalizedEmail);
+    const normalizedPhone = typeof phone === 'string' ? phone.trim() : '';
+    const userExists = HOSPITAL_USERS_DB.some(u => u.email === normalizedEmail || (normalizedPhone && u.phone === normalizedPhone));
     if (userExists) {
       return res.status(400).json({ error: "Cet email est déjà associé à un compte professionnel." });
+    }
+
+    if (dbService.getStatus().connected) {
+      const existingUser = await dbService.query<{ id: number }>(
+        'SELECT id FROM users WHERE LOWER(email) = LOWER($1) OR phone = $2 LIMIT 1',
+        [normalizedEmail, normalizedPhone]
+      );
+      if (existingUser?.rows.length) {
+        return res.status(409).json({ error: "Cet email ou ce téléphone est déjà associé à un compte professionnel." });
+      }
     }
 
     const hospitalId = `hosp-${Date.now()}`;
@@ -606,7 +610,7 @@ async function startServer() {
       reviewsCount: 0,
       distance: `${(1 + Math.random() * 5).toFixed(1)} km`,
       address: address || "Abomey-Calavi Centre, Bénin",
-      phone: phone || "+229 97 00 00 00",
+      phone: normalizedPhone || "+229 97 00 00 00",
       hours: hours || "Ouvert 24h/24",
       isVerified: false, // Must be verified by Super Admin
       services: ['Médecine Générale', 'Consultations', 'Urgences'],
@@ -802,6 +806,9 @@ async function startServer() {
         [normalizedEmail]
       );
       user = result?.rows[0];
+      if (!user) {
+        user = HOSPITAL_USERS_DB.find(u => u.email === normalizedEmail);
+      }
     } else {
       user = HOSPITAL_USERS_DB.find(u => u.email === normalizedEmail);
     }
@@ -814,6 +821,10 @@ async function startServer() {
 
     if (!isMatch) {
       return res.status(401).json({ error: "Identifiants incorrects." });
+    }
+
+    if (expectedRole && !['doctor', 'admin'].includes(expectedRole)) {
+      return res.status(400).json({ error: 'Rôle professionnel invalide.' });
     }
 
     if (expectedRole && expectedRole !== user.role) {

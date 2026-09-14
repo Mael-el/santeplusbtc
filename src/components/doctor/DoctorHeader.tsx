@@ -21,6 +21,8 @@ export default function DoctorHeader({ doctorData, onLogout, onDashboard }: Doct
     localStorage.removeItem('user');
     localStorage.removeItem('sante_role');
     localStorage.removeItem('sante_hospital_user');
+    localStorage.removeItem('sante_hospital_token');
+    localStorage.removeItem('sante_access_token');
     if (onLogout) {
       onLogout();
     } else {

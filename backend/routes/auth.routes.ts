@@ -20,7 +20,7 @@ function asyncHandler(handler: (req: Request, res: Response) => Promise<any>) {
 
 interface AuthUser {
   id: number;
-  email: string;
+  email: string | null;
   phone: string;
   role: string;
   password_hash: string;
@@ -35,6 +35,7 @@ const DB_FILE = path.join(process.cwd(), 'data_db.json');
 
 let users: AuthUser[] = [];
 let nextUserId = 1;
+const passwordResetRequests = new Map<string, { userId: number; code: string; expiresAt: number }>();
 
 function saveAuthUsers(): void {
   if (process.env.NODE_ENV === 'production') {
@@ -72,22 +73,9 @@ function loadAuthUsers(): void {
     // fallback
   }
 
-  // Initial seed admin if no user exists
-  const initialAdminPass = process.env.INITIAL_ADMIN_PASSWORD;
-  if (!initialAdminPass) {
-    throw new Error('INITIAL_ADMIN_PASSWORD must be configured');
-  }
-  users = [
-    {
-      id: 1,
-      email: 'admin@santeplus.bj',
-      phone: '+229 21 00 00 01',
-      role: 'admin',
-      password_hash: bcrypt.hashSync(initialAdminPass, 10),
-    }
-  ];
-  nextUserId = 2;
-  saveAuthUsers();
+  // Keep the development store empty until an account is explicitly created.
+  users = [];
+  nextUserId = 1;
 }
 
 loadAuthUsers();
@@ -101,7 +89,7 @@ async function findUser(criteria: { id?: number; email?: string; phone?: string 
       conditions.push(`id = $${params.length + 1}`);
       params.push(String(criteria.id));
     }
-    if (criteria.email) {
+    if (criteria.email !== undefined) {
       conditions.push(`LOWER(email) = LOWER($${params.length + 1})`);
       params.push(criteria.email);
     }
@@ -123,7 +111,7 @@ async function findUser(criteria: { id?: number; email?: string; phone?: string 
   loadAuthUsers();
   return users.find(user => user.role === 'patient' && (
     (criteria.id !== undefined && user.id === criteria.id) ||
-    (criteria.email !== undefined && user.email.toLowerCase() === criteria.email.toLowerCase()) ||
+    (criteria.email !== undefined && user.email?.toLowerCase() === criteria.email.toLowerCase()) ||
     (criteria.phone !== undefined && user.phone === criteria.phone)
   ));
 }
@@ -136,14 +124,15 @@ type ProfileData = {
   specialty?: string;
   bloodType?: string;
   allergies?: string;
+  emergencyContacts?: Array<{ name: string; phone: string }>;
 };
 
 async function insertRoleProfile(client: PoolClient, user: AuthUser, data: ProfileData): Promise<void> {
   const firstName = data.firstName || 'Utilisateur';
-  const lastName = data.lastName || user.email.split('@')[0];
+  const lastName = data.lastName || 'Patient';
   const npi = `BJ${String(user.id).padStart(11, '0')}`;
   const identityUuid = crypto.randomUUID();
-  const qrCodeHash = crypto.createHash('sha256').update(`${user.id}:${user.email}`).digest('hex');
+  const qrCodeHash = crypto.createHash('sha256').update(`${user.id}:${user.phone}`).digest('hex');
 
   await client.query(
     `INSERT INTO identity_registry
@@ -158,8 +147,8 @@ async function insertRoleProfile(client: PoolClient, user: AuthUser, data: Profi
   if (user.role === 'patient') {
     await client.query(
       `INSERT INTO patients
-       (user_id, identity_uuid, first_name, last_name, date_of_birth, gender, npi, qr_code_hash, pin_hash, blood_type, allergies)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+      (user_id, identity_uuid, first_name, last_name, date_of_birth, gender, npi, qr_code_hash, pin_hash, blood_type, allergies, emergency_contacts)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
       [
         user.id,
         identityUuid,
@@ -172,6 +161,7 @@ async function insertRoleProfile(client: PoolClient, user: AuthUser, data: Profi
         hashPassword(`${user.id}${user.phone.slice(-4)}`),
         data.bloodType || null,
         data.allergies || null,
+        JSON.stringify(data.emergencyContacts || []),
       ]
     );
     await client.query(
@@ -229,16 +219,20 @@ async function createUserWithProfile(user: Omit<AuthUser, 'id'>, data: ProfileDa
     const profiles = existing.PATIENTS_DB && typeof existing.PATIENTS_DB === 'object'
       ? existing.PATIENTS_DB
       : {};
-    profiles[createdUser.email] = {
-      ...profiles[createdUser.email],
+    const profileKey = createdUser.email || createdUser.phone;
+    profiles[profileKey] = {
+      ...profiles[profileKey],
       name: `${data.firstName || 'Utilisateur'} ${data.lastName || ''}`.trim(),
       email: createdUser.email,
       phone: createdUser.phone,
       npi: canonicalPatientNpi(createdUser.id),
       bloodGroup: data.bloodType || '',
       allergies: data.allergies || 'Aucune',
-      identityUuid: identityUuidForUser(createdUser.id, createdUser.email),
-      qrCodeHash: crypto.createHash('sha256').update(`${createdUser.id}:${createdUser.email}`).digest('hex'),
+      dateOfBirth: data.dateOfBirth || null,
+      gender: data.gender || 'non_specifie',
+      emergencyContacts: data.emergencyContacts || [],
+      identityUuid: identityUuidForUser(createdUser.id, createdUser.phone),
+      qrCodeHash: crypto.createHash('sha256').update(`${createdUser.id}:${createdUser.phone}`).digest('hex'),
     };
     try {
       fs.writeFileSync(DB_FILE, JSON.stringify({ ...existing, PATIENTS_DB: profiles }, null, 2), 'utf8');
@@ -298,10 +292,10 @@ function setAuthCookies(res: Response, accessToken: string, refreshToken: string
 
 // POST /api/auth/register/patient
 router.post('/register/patient', asyncHandler(async (req: Request, res: Response) => {
-  const { email, phone, password, firstName, lastName, dateOfBirth, bloodType, allergies } = req.body;
+  const { email, phone, password, firstName, lastName, dateOfBirth, gender, bloodType, allergies, emergencyContacts } = req.body;
 
-  if (!email || !phone || !password) {
-    return res.status(400).json({ success: false, error: 'Champs obligatoires manquants' });
+  if (!email || !phone || !password || !firstName || !lastName || !dateOfBirth || !gender) {
+    return res.status(400).json({ success: false, error: 'Les informations personnelles obligatoires sont manquantes' });
   }
   const validationError = validateCredentials(email, phone, password);
   if (validationError) return res.status(400).json({ success: false, error: validationError });
@@ -315,7 +309,7 @@ router.post('/register/patient', asyncHandler(async (req: Request, res: Response
     phone,
     role: 'patient',
     password_hash: hashPassword(password),
-  }, { firstName, lastName, dateOfBirth, bloodType, allergies });
+  }, { firstName, lastName, dateOfBirth, gender, bloodType, allergies, emergencyContacts });
 
   let patientNpi: string | undefined;
   if (dbService.getStatus().connected) {
@@ -340,6 +334,7 @@ router.post('/register/patient', asyncHandler(async (req: Request, res: Response
         phone: newUser.phone,
         role: newUser.role,
         npi: patientNpi,
+        qrCodeHash: crypto.createHash('sha256').update(`${newUser.id}:${newUser.phone}`).digest('hex'),
         bloodGroup: bloodType || '',
         allergies: allergies || 'Aucune',
       },
@@ -426,6 +421,57 @@ router.post('/register/hospital', asyncHandler(async (req: Request, res: Respons
   });
 }));
 
+// POST /api/auth/password-reset/request
+router.post('/password-reset/request', asyncHandler(async (req: Request, res: Response) => {
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  if (!/^\S+@\S+\.\S+$/.test(email)) {
+    return res.status(400).json({ success: false, error: 'Adresse email invalide' });
+  }
+
+  const user = await findUser({ email });
+  const response: { success: true; message: string; devCode?: string } = {
+    success: true,
+    message: 'Si cette adresse correspond à un patient, un code de réinitialisation a été envoyé.',
+  };
+
+  if (user) {
+    const code = String(crypto.randomInt(100000, 1000000));
+    passwordResetRequests.set(email, { userId: user.id, code, expiresAt: Date.now() + 15 * 60 * 1000 });
+    // The production email provider can consume this event. Keep the code visible only in local development.
+    if (process.env.NODE_ENV !== 'production') response.devCode = code;
+    console.info(`[Auth] Password reset requested for ${email}`);
+  }
+
+  return res.json(response);
+}));
+
+// POST /api/auth/password-reset/confirm
+router.post('/password-reset/confirm', asyncHandler(async (req: Request, res: Response) => {
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  const code = typeof req.body?.code === 'string' ? req.body.code.trim() : '';
+  const newPassword = typeof req.body?.newPassword === 'string' ? req.body.newPassword : '';
+  const request = passwordResetRequests.get(email);
+
+  if (!request || request.expiresAt < Date.now() || request.code !== code) {
+    return res.status(400).json({ success: false, error: 'Code invalide ou expiré' });
+  }
+  const validationError = validateCredentials(email, undefined, newPassword);
+  if (validationError) return res.status(400).json({ success: false, error: validationError });
+
+  if (dbService.getStatus().connected) {
+    await dbService.query('UPDATE users SET password_hash = $1 WHERE id = $2 AND role = \'patient\'', [hashPassword(newPassword), request.userId]);
+  } else {
+    loadAuthUsers();
+    const user = users.find(item => item.id === request.userId && item.role === 'patient');
+    if (user) {
+      user.password_hash = hashPassword(newPassword);
+      saveAuthUsers();
+    }
+  }
+  passwordResetRequests.delete(email);
+  return res.json({ success: true, message: 'Mot de passe réinitialisé. Vous pouvez vous connecter.' });
+}));
+
 // POST /api/auth/login
 router.post('/login', loginRateLimit, asyncHandler(async (req: Request, res: Response) => {
   const { phone, email, password } = req.body;
@@ -457,7 +503,7 @@ router.post('/login', loginRateLimit, asyncHandler(async (req: Request, res: Res
 
   if (dbService.getStatus().connected && user.role === 'patient') {
     const profile = await dbService.query<any>(
-      `SELECT p.npi, p.blood_type AS "bloodGroup", p.first_name AS "firstName", p.last_name AS "lastName"
+      `SELECT p.npi, p.qr_code_hash AS "qrCodeHash", p.blood_type AS "bloodGroup", p.first_name AS "firstName", p.last_name AS "lastName"
        FROM patients p WHERE p.user_id = $1 LIMIT 1`,
       [user.id]
     );
@@ -466,6 +512,9 @@ router.post('/login', loginRateLimit, asyncHandler(async (req: Request, res: Res
   if (user.role === 'patient' && !extraProfile.npi) {
     extraProfile.npi = `BJ${String(user.id).padStart(11, '0')}`;
   }
+  const profileName = extraProfile.name
+    || `${extraProfile.firstName || ''} ${extraProfile.lastName || ''}`.trim()
+    || 'Patient';
 
   res.json({
     success: true,
@@ -477,10 +526,13 @@ router.post('/login', loginRateLimit, asyncHandler(async (req: Request, res: Res
         email: user.email, 
         phone: user.phone, 
         role: user.role,
-        name: extraProfile.name,
+        name: profileName,
+        firstName: extraProfile.firstName,
+        lastName: extraProfile.lastName,
         walletBalance: extraProfile.walletBalance,
         satoshiBalance: extraProfile.satoshiBalance,
         npi: extraProfile.npi,
+        qrCodeHash: extraProfile.qrCodeHash,
         bloodGroup: extraProfile.bloodGroup,
       },
       expiresIn: 900,

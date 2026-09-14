@@ -98,16 +98,20 @@ export interface Invoice {
 
 export interface Patient {
   name: string;
-  email: string;
+  email?: string;
   phone: string;
   walletBalance: number;
   satoshiBalance?: number;
   npi?: string;
+  qrCodeHash?: string;
   avatar?: string;
   bloodGroup?: string;
   recurringDiseases?: string;
   antecedents?: string;
   allergies?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  emergencyContacts?: Array<{ name: string; phone: string }>;
 }
 
 export interface HospitalUser {

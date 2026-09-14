@@ -15,6 +15,7 @@ export default function InteractiveMap({ onSelectHospital, onSelectAlreadyThere,
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState<'all' | 'public' | 'private' | 'clinic'>('all');
   const [hoveredHospitalId, setHoveredHospitalId] = useState<string | null>(null);
+  const [mobileTab, setMobileTab] = useState<'list' | 'map'>('list');
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -87,6 +88,20 @@ export default function InteractiveMap({ onSelectHospital, onSelectAlreadyThere,
     observer.observe(mapContainerRef.current);
     return () => observer.disconnect();
   }, []);
+
+  // Force map resize when user switches to map tab on mobile
+  useEffect(() => {
+    if (mobileTab === 'map' && mapRef.current) {
+      const timer = setTimeout(() => {
+        try {
+          mapRef.current?.invalidateSize();
+        } catch (e) {
+          console.warn("Failed to invalidate map size on tab change:", e);
+        }
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [mobileTab]);
 
   // Update Markers based on filteredHospitals
   useEffect(() => {
@@ -188,9 +203,43 @@ export default function InteractiveMap({ onSelectHospital, onSelectAlreadyThere,
   }, [hoveredHospitalId, filteredHospitals]);
 
   return (
-    <div id="interactive-map-container" className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full">
-      {/* Sidebar: Search & Hospital List */}
-      <div id="map-sidebar" className="lg:col-span-5 flex flex-col h-[650px] lg:h-[750px] bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+    <div id="interactive-map-container" className="flex flex-col gap-3 h-full">
+      {/* Mobile Tab Switcher */}
+      <div className="lg:hidden flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200">
+        <button
+          type="button"
+          onClick={() => setMobileTab('list')}
+          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+            mobileTab === 'list'
+              ? 'bg-white text-emerald-800 shadow-xs'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <SlidersHorizontal className="w-3.5 h-3.5" />
+          <span>Établissements ({filteredHospitals.length})</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileTab('map')}
+          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+            mobileTab === 'map'
+              ? 'bg-white text-emerald-800 shadow-xs'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <Globe className="w-3.5 h-3.5 text-emerald-600" />
+          <span>Carte Interactive</span>
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full">
+        {/* Sidebar: Search & Hospital List */}
+        <div
+          id="map-sidebar"
+          className={`lg:col-span-5 flex-col h-[650px] lg:h-[750px] bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden ${
+            mobileTab === 'list' ? 'flex' : 'hidden lg:flex'
+          }`}
+        >
         {/* Header Search Area */}
         <div className="p-5 border-b border-gray-100 bg-gray-50/50">
           <div className="flex items-center justify-between mb-4">
@@ -321,8 +370,18 @@ export default function InteractiveMap({ onSelectHospital, onSelectAlreadyThere,
                     onClick={() => onSelectAlreadyThere(hospital)}
                     className="py-1.5 text-xs text-white bg-[#00D26A] hover:bg-[#00D26A]/90 font-sans font-medium rounded-xl shadow-xs transition-all text-center flex items-center justify-center gap-1 cursor-pointer"
                   >
-                    <span>Je suis sur place</span>
+                    <span>Sur place</span>
                     <Zap className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setHoveredHospitalId(hospital.id);
+                      setMobileTab('map');
+                    }}
+                    className="col-span-2 lg:hidden py-1.5 text-xs text-emerald-800 bg-emerald-50 hover:bg-emerald-100 font-sans font-bold rounded-xl transition-all text-center flex items-center justify-center gap-1.5 cursor-pointer border border-emerald-200"
+                  >
+                    <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Localiser sur la carte</span>
                   </button>
                 </div>
               </div>
@@ -338,8 +397,12 @@ export default function InteractiveMap({ onSelectHospital, onSelectAlreadyThere,
       </div>
 
       {/* Map View Canvas (Exclusively OpenStreetMap) */}
-      <div id="vector-map" className="lg:col-span-7 flex flex-col h-[650px] lg:h-[750px] bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden relative">
-        
+      <div
+        id="vector-map"
+        className={`lg:col-span-7 flex-col h-[520px] sm:h-[600px] lg:h-[750px] bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden relative ${
+          mobileTab === 'map' ? 'flex' : 'hidden lg:flex'
+        }`}
+      >
         {/* Map Header Overlay */}
         <div className="absolute top-4 left-4 z-[1000] bg-white/95 backdrop-blur-md border border-gray-100 px-3 py-2 rounded-2xl shadow-md flex items-center gap-2">
           <Globe className="w-4 h-4 text-[#059669]" />
@@ -360,5 +423,6 @@ export default function InteractiveMap({ onSelectHospital, onSelectAlreadyThere,
         </div>
       </div>
     </div>
+  </div>
   );
 }

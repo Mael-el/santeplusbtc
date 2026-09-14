@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Invoice, AccessRequest, Patient, MedicalDocument, Appointment } from '../types';
 import { 
-  QrCode, Folder, FileText, Building2, 
+  QrCode, Folder, FileText, Building2, Bell, AlarmClock,
   Calendar, Heart, User, Wallet, ArrowRight,
   PlusCircle, Download, CheckCircle2, ShieldCheck, 
   Sparkles, X, Volume2, VolumeX, AlertCircle, Eye, Printer, Zap, RefreshCw,
@@ -10,6 +10,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { QRCodeSVG, QRCodeCanvas } from 'qrcode.react';
 import { jsPDF } from 'jspdf';
+import { Banner } from 'orbit-design-system';
 
 interface WalletTabProps {
   balance: number;
@@ -28,6 +29,7 @@ interface WalletTabProps {
   onNavigateToAppointments?: () => void;
   onOpenProfile?: () => void;
   clinicalRecord?: { consultations: any[]; prescriptions: any[] };
+  notifications?: Array<{ id: string; title: string; message: string; timestamp: string; read: boolean }>;
 }
 
 export default function WalletTab({
@@ -46,7 +48,8 @@ export default function WalletTab({
   onNavigateToMap,
   onNavigateToAppointments,
   onOpenProfile,
-  clinicalRecord = { consultations: [], prescriptions: [] }
+  clinicalRecord = { consultations: [], prescriptions: [] },
+  notifications = []
 }: WalletTabProps) {
   
   // Active sub-modal states for the 9 cards
@@ -54,6 +57,9 @@ export default function WalletTab({
     'qr' | 'medical-record' | 'prescriptions' | 'payments' | 
     'tontine' | 'appointments' | 'blood' | 'topup' | null
   >(null);
+  const [prescriptionTab, setPrescriptionTab] = useState<'active' | 'history' | 'renewable'>('active');
+  const [medicalTab, setMedicalTab] = useState<'all' | 'consultations' | 'prescriptions' | 'analyses' | 'exams' | 'blood' | 'vaccines'>('all');
+  const [medicalPeriod, setMedicalPeriod] = useState<'all' | '6months' | '1year'>('all');
 
   // Audio Speech state
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
@@ -72,6 +78,7 @@ export default function WalletTab({
   const [tontineLoading, setTontineLoading] = useState(false);
   const [tontineSuccessMsg, setTontineSuccessMsg] = useState<string | null>(null);
   const [showCreateTontine, setShowCreateTontine] = useState(false);
+  const [tontineTab, setTontineTab] = useState<'groups' | 'join' | 'create'>('groups');
   const [newTontineName, setNewTontineName] = useState('');
   const [newTontineContrib, setNewTontineContrib] = useState('10000');
 
@@ -92,6 +99,8 @@ export default function WalletTab({
   const fullName = patientUser?.name || 'Patient';
   const npi = patientUser?.npi || 'NPI non attribué';
   const bloodGroup = patientUser?.bloodGroup || 'Non renseigné';
+  const qrIdentity = patientUser?.qrCodeHash || npi;
+  const qrValue = `SANTE-PLUS-BENIN:NPI=${npi};PATIENT=${fullName};BLOOD=${bloodGroup};QR_HASH=${qrIdentity}`;
 
   // Synchronisation avec les APIs backend Tontines & Don de Sang
   useEffect(() => {
@@ -327,16 +336,16 @@ export default function WalletTab({
   };
 
   return (
-    <div className="page-enter w-full max-w-7xl mx-auto space-y-3">
+    <div className="page-enter patient-space role-dashboard w-full max-w-7xl mx-auto space-y-3">
       
       {/* ---------------------------------------------------- */}
       {/* TOP PATIENT HEALTH IDENTIFIER & WALLET BAR           */}
       {/* ---------------------------------------------------- */}
-      <div className="bg-white/90 backdrop-blur-xs p-3 sm:p-4 rounded-2xl border border-slate-200/90 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+      <div className="patient-header bg-white/90 backdrop-blur-xs p-3 sm:p-4 rounded-2xl border border-slate-200/90 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
         
         {/* Patient Identity */}
         <div className="flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center font-black text-sm shadow-sm shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#0f766e] to-[#0e7490] text-white flex items-center justify-center font-black text-sm shadow-sm shrink-0">
             {patientUser?.name ? patientUser.name.substring(0, 2).toUpperCase() : 'JD'}
           </div>
           <div>
@@ -346,7 +355,7 @@ export default function WalletTab({
               </h1>
               <button
                 onClick={handleReadDashboard}
-                className="p-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-full transition-all cursor-pointer"
+                className="p-1.5 bg-cyan-50 text-cyan-700 hover:bg-cyan-100 rounded-full transition-all cursor-pointer"
                 title="Écouter le résumé de vos services"
               >
                 {isPlayingAudio ? <VolumeX className="w-4 h-4 text-red-500 animate-pulse" /> : <Volume2 className="w-4 h-4" />}
@@ -361,8 +370,8 @@ export default function WalletTab({
               <span className="text-[11px] font-black text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded-md">
                 Groupe {bloodGroup}
               </span>
-              <span className="hidden sm:inline-flex text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md items-center gap-1">
-                <ShieldCheck className="w-3 h-3 text-emerald-600" />
+              <span className="hidden sm:inline-flex text-[11px] font-bold text-cyan-800 bg-cyan-50 border border-cyan-200 px-2 py-0.5 rounded-md items-center gap-1">
+                <ShieldCheck className="w-3 h-3 text-cyan-600" />
                 Passeport e-Santé Certifié
               </span>
             </div>
@@ -372,38 +381,68 @@ export default function WalletTab({
         {/* Solde Portefeuille & Recharge Rapide */}
         <div 
           onClick={() => setActiveModal('topup')}
-          className="w-full md:w-auto bg-gradient-to-r from-amber-50 to-amber-100/50 hover:from-amber-100/70 hover:to-amber-100 border border-amber-200/80 p-3 sm:p-3.5 rounded-xl flex items-center justify-between md:justify-start gap-4 cursor-pointer transition-all hover:shadow-xs group shrink-0"
+          className="patient-wallet w-full md:w-auto bg-gradient-to-r from-[#fff7ed] to-[#ffedd5] hover:from-[#ffedd5] hover:to-[#fed7aa] border border-orange-200/80 p-3 sm:p-3.5 rounded-xl flex items-center justify-between md:justify-start gap-4 cursor-pointer transition-all hover:shadow-xs group shrink-0"
           title="Cliquez pour recharger votre solde"
         >
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+            <div className="w-10 h-10 rounded-xl bg-[#ea580c] text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
               <Wallet className="w-5 h-5" />
             </div>
             <div>
-              <span className="text-[10px] font-black uppercase tracking-wider text-amber-900/80 block leading-none">
+              <span className="text-[10px] font-black uppercase tracking-wider text-orange-900/80 block leading-none">
                 SOLDE DISPONIBLE
               </span>
               <div className="text-xl sm:text-2xl font-black text-slate-900 font-sans tracking-tight mt-0.5">
                 {balance.toLocaleString('fr-FR')} <span className="text-xs font-bold text-slate-600">FCFA</span>
               </div>
-              <div className="text-[11px] font-bold text-amber-800 flex items-center gap-1">
-                <Zap className="w-3 h-3 fill-amber-600 text-amber-600" />
+              <div className="text-[11px] font-bold text-orange-800 flex items-center gap-1">
+                <Zap className="w-3 h-3 fill-orange-600 text-orange-600" />
                 <span>{satoshiBalance.toLocaleString('fr-FR')} Sats</span>
               </div>
             </div>
           </div>
 
-          <div className="text-xs font-extrabold text-amber-800 bg-white/90 px-2.5 py-1.5 rounded-lg border border-amber-200 shadow-xs group-hover:bg-white transition-colors">
+          <div className="text-xs font-extrabold text-orange-800 bg-white/90 px-2.5 py-1.5 rounded-lg border border-orange-200 shadow-xs group-hover:bg-white transition-colors">
             Recharger +
           </div>
         </div>
 
       </div>
 
+      <section className="patient-pass-card rounded-[32px_32px_8px_32px] bg-gradient-to-br from-emerald-700 via-emerald-600 to-teal-500 p-4 text-white shadow-xl sm:p-6">
+        <div className="flex flex-col gap-5">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-100">Mon pass médical</p>
+            <h2 className="mt-1 text-2xl font-black text-white">Votre santé pulse.</h2>
+            <p className="mt-1 text-sm text-emerald-50">{npi} · {fullName}</p>
+            <p className="mt-2 text-xs font-bold text-emerald-100">Groupe {bloodGroup} · Dossier sécurisé</p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button onClick={() => setActiveModal('qr')} className="rounded-xl bg-white px-4 py-2 text-xs font-black text-emerald-800 hover:bg-emerald-50">Ouvrir le QR</button>
+              <button onClick={() => setActiveModal('medical-record')} className="rounded-xl border border-white/50 px-4 py-2 text-xs font-black text-white hover:bg-white/10">Voir mon dossier</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {notifications.some(notification => !notification.read) && (
+        <div
+          onClick={() => setActiveModal('medical-record')}
+          className="w-full cursor-pointer rounded-2xl shadow-xs hover:brightness-[0.98]"
+        >
+          <Banner
+            styleVariant="positive"
+            layout="compact"
+            title="Dossier médical mis à jour"
+            body="Ouvrez votre dossier pour voir la nouvelle consultation et le traitement transmis par votre médecin."
+            showCloseButton={false}
+          />
+        </div>
+      )}
+
       {/* ---------------------------------------------------- */}
       {/* 9 ACTION CARDS GRID (CALIBRÉE & COMPACTE)            */}
       {/* ---------------------------------------------------- */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+      <div className="patient-services grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
         
         {/* CARD 1: MON QR CODE */}
         <div 
@@ -418,7 +457,6 @@ export default function WalletTab({
           </div>
           <div>
             <h3 className="text-[13px] font-black text-slate-900 font-sans">Mon QR Code</h3>
-            <p className="text-[11px] text-slate-500 font-sans">Passeport numérique d'admission</p>
           </div>
         </div>
 
@@ -435,7 +473,6 @@ export default function WalletTab({
           </div>
           <div>
             <h3 className="text-[15px] font-black text-slate-900 font-sans">Dossier Médical</h3>
-            <p className="text-[11px] text-slate-500 font-sans">Historique clinique et examens</p>
           </div>
         </div>
 
@@ -448,13 +485,14 @@ export default function WalletTab({
             <div className="w-10 h-10 rounded-xl bg-red-50 text-red-500 flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
               <FileText className="w-5 h-5" />
             </div>
-            <span className="px-2 py-0.5 bg-red-600 text-white font-extrabold text-[10px] rounded-full uppercase tracking-wider shadow-xs animate-pulse">
-              1 NOUVELLE
-            </span>
+            {clinicalRecord.prescriptions.length > 0 && (
+              <span className="px-2 py-0.5 bg-red-600 text-white font-extrabold text-[10px] rounded-full uppercase tracking-wider shadow-xs animate-pulse">
+                {clinicalRecord.prescriptions.length} NOUVELLE{clinicalRecord.prescriptions.length > 1 ? 'S' : ''}
+              </span>
+            )}
           </div>
           <div>
             <h3 className="text-[15px] font-black text-slate-900 font-sans">Ordonnances</h3>
-            <p className="text-[11px] text-slate-500 font-sans">Prescriptions actives et délivrance</p>
           </div>
         </div>
 
@@ -471,7 +509,6 @@ export default function WalletTab({
           </div>
           <div>
             <h3 className="text-[15px] font-black text-slate-900 font-sans">Paiements</h3>
-            <p className="text-[11px] text-slate-500 font-sans">Reçus certifiés et transactions</p>
           </div>
         </div>
 
@@ -488,7 +525,6 @@ export default function WalletTab({
           </div>
           <div>
             <h3 className="text-[15px] font-black text-slate-900 font-sans">Tontine Santé</h3>
-            <p className="text-[11px] text-slate-500 font-sans">Épargne santé solidaire</p>
           </div>
         </div>
 
@@ -507,7 +543,6 @@ export default function WalletTab({
           </div>
           <div>
             <h3 className="text-[15px] font-black text-slate-900 font-sans">Rendez-vous</h3>
-            <p className="text-[11px] text-slate-500 font-sans">Médecin non renseigné</p>
           </div>
         </div>
 
@@ -527,7 +562,6 @@ export default function WalletTab({
           </div>
           <div>
             <h3 className="text-[15px] font-black text-slate-900 font-sans">Hôpitaux</h3>
-            <p className="text-[11px] text-slate-500 font-sans">Centres et pharmacies de garde</p>
           </div>
         </div>
 
@@ -546,7 +580,6 @@ export default function WalletTab({
           </div>
           <div>
             <h3 className="text-[15px] font-black text-slate-900 font-sans">Don de Sang</h3>
-            <p className="text-[11px] text-slate-500 font-sans">Campagnes et donneur bénévole</p>
           </div>
         </div>
 
@@ -566,11 +599,34 @@ export default function WalletTab({
           </div>
           <div>
             <h3 className="text-[15px] font-black text-slate-900 font-sans">Mon Profil</h3>
-            <p className="text-[11px] text-slate-500 font-sans">Identité biométrique et contacts</p>
           </div>
         </div>
 
       </div>
+
+      <section className="patient-notification-list rounded-[32px_32px_8px_32px] border border-emerald-100 bg-white p-4 shadow-sm sm:p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-700">À ne pas manquer</p>
+            <h2 className="mt-1 text-xl font-black text-emerald-950">Notifications récentes</h2>
+          </div>
+          <Bell className="h-5 w-5 text-emerald-600" />
+        </div>
+        {notifications.length === 0 ? (
+          <p className="mt-4 rounded-xl bg-emerald-50 p-4 text-sm text-emerald-800">Aucune notification pour le moment.</p>
+        ) : (
+          <div className="mt-3 divide-y divide-emerald-50">
+            {notifications.slice(0, 3).map(notification => (
+              <button key={notification.id} onClick={() => setActiveModal('medical-record')} className="flex min-h-[60px] w-full items-center gap-3 py-3 text-left hover:bg-emerald-50/60">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700"><Bell className="h-4 w-4" /></span>
+                <span className="min-w-0 flex-1"><strong className="block truncate text-sm text-emerald-950">{notification.title}</strong><span className="block truncate text-xs text-emerald-700">{notification.message}</span></span>
+                <span className="shrink-0 text-[10px] text-emerald-600">{new Date(notification.timestamp).toLocaleDateString('fr-FR')}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+
 
       {/* ---------------------------------------------------- */}
       {/* MODAL 1: MON QR CODE VISUAL PASS                     */}
@@ -591,7 +647,7 @@ export default function WalletTab({
 
               <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex flex-col items-center">
                 <QRCodeSVG 
-                  value={`SANTE-PLUS-BENIN:NPI=${npi};PATIENT=${fullName};BLOOD=${bloodGroup};DATE=${Date.now()}`}
+                  value={qrValue}
                   size={190}
                   level="H"
                   includeMargin
@@ -630,20 +686,66 @@ export default function WalletTab({
               exit={{ opacity: 0, scale: 0.95 }}
               className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto"
             >
-              <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <div className="flex items-center justify-between border-b border-emerald-100 pb-3">
                 <div>
-                  <h3 className="text-lg font-black text-gray-900">Mes Ordonnances Médicales</h3>
-                  <p className="text-xs text-gray-500">Prescriptions certifiées et tamponnées</p>
+                  <h3 className="text-2xl font-black text-emerald-950">Mes Ordonnances</h3>
+                  <p className="text-sm text-emerald-700">Traitements prescrits par vos médecins</p>
                 </div>
                 <button onClick={() => setActiveModal(null)} className="text-gray-400 hover:text-gray-700 p-1 cursor-pointer"><X className="w-5 h-5" /></button>
               </div>
 
-              {customDocuments.filter(d => d.type === 'prescription').length === 0 ? (
+              <div className="grid grid-cols-3 gap-1 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-1.5">
+                {([['active', 'Actives'], ['history', 'Historique'], ['renewable', 'Renouvelables']] as const).map(([tab, label]) => (
+                  <button key={tab} type="button" onClick={() => setPrescriptionTab(tab)} className={`min-h-[44px] rounded-xl px-2 py-2 text-xs font-black transition ${prescriptionTab === tab ? 'bg-emerald-600 text-white shadow-sm' : 'text-emerald-800 hover:bg-white'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {clinicalRecord.prescriptions.filter(prescription => prescriptionTab === 'active' ? prescription.status === 'active' : prescriptionTab === 'history' ? prescription.status !== 'active' : prescription.status !== 'active').map((prescription) => (
+                <div key={`clinical-${prescription.id}`} className={`rounded-[32px_32px_8px_32px] border p-4 shadow-sm ${prescriptionTab === 'active' ? 'border-emerald-200 bg-emerald-50/60' : 'border-emerald-100 bg-white'}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">{prescriptionTab === 'active' ? 'Prescription active' : 'Prescription terminée'}</p>
+                      <h4 className="mt-1 text-xl font-black text-emerald-950">{prescription.medication}</h4>
+                      <p className="mt-1 text-xs font-bold text-emerald-700">Médecin Santé+ · {prescription.createdAt ? new Date(prescription.createdAt).toLocaleDateString('fr-FR') : 'Date non renseignée'}</p>
+                    </div>
+                    <FileText className="h-5 w-5 text-emerald-600" />
+                  </div>
+                  <div className="mt-4 rounded-2xl border border-emerald-100 bg-white p-3">
+                    <p className="text-sm font-black text-emerald-950">{prescription.medication}</p>
+                    <p className="mt-1 text-xs font-bold text-emerald-700">{prescription.dosage || 'Posologie à confirmer'} · {prescription.frequency || 'Fréquence à confirmer'}</p>
+                  </div>
+                  {prescriptionTab === 'active' ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button type="button" onClick={() => speakText(`Posologie : ${prescription.medication}. ${prescription.dosage || ''}. ${prescription.frequency || ''}.`)} className="flex min-h-[44px] items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-xs font-black text-emerald-800 hover:bg-emerald-100"><Volume2 className="h-4 w-4" />Écouter la posologie</button>
+                      <button type="button" onClick={() => window.print()} className="flex min-h-[44px] items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-xs font-black text-emerald-800 hover:bg-emerald-100"><Download className="h-4 w-4" />Télécharger PDF</button>
+                      <button type="button" className="flex min-h-[44px] items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-black text-white hover:bg-emerald-700"><AlarmClock className="h-4 w-4" />Rappel de prise</button>
+                    </div>
+                  ) : (
+                    <button type="button" onClick={() => setPrescriptionTab('renewable')} className="mt-3 min-h-[44px] rounded-xl border border-emerald-200 px-3 py-2 text-xs font-black text-emerald-800 hover:bg-emerald-50">Voir ou renouveler</button>
+                  )}
+                </div>
+              ))}
+
+              {customDocuments.filter(d => d.type === 'prescription').length === 0 && clinicalRecord.prescriptions.filter(prescription => prescriptionTab === 'active' ? prescription.status === 'active' : prescription.status !== 'active').length === 0 ? (
                 <div className="p-5 bg-slate-50 border border-dashed border-slate-300 rounded-2xl text-center">
-                  <p className="text-sm font-bold text-slate-700">Aucune ordonnance pour le moment.</p>
-                  <p className="text-xs text-slate-500 mt-1">Les prescriptions du médecin apparaîtront ici après la première consultation.</p>
+                  <p className="text-sm font-bold text-emerald-800">Aucune ordonnance dans cette catégorie.</p>
+                  <p className="text-xs text-emerald-700 mt-1">Les prescriptions transmises par votre médecin apparaîtront ici.</p>
                 </div>
               ) : null}
+
+              {clinicalRecord.prescriptions.map((prescription) => (
+                <div key={`clinical-${prescription.id}`} className="p-4 bg-red-50 border border-red-100 rounded-2xl space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <h4 className="font-bold text-sm text-gray-900">Nouveau traitement</h4>
+                    <span className="text-[10px] font-bold uppercase text-red-700">{prescription.status || 'active'}</span>
+                  </div>
+                  <p className="text-sm font-black text-slate-900">{prescription.medication}</p>
+                  <p className="text-xs text-slate-600">{prescription.dosage || 'Posologie à confirmer'} · {prescription.frequency || 'Fréquence à confirmer'}</p>
+                  <p className="text-[11px] text-slate-500">Transmis par le médecin {prescription.patientName ? `pour ${prescription.patientName}` : ''}</p>
+                </div>
+              ))}
 
               {/* Custom documents if any */}
               {customDocuments.filter(d => d.type === 'prescription').map(doc => (
@@ -675,33 +777,56 @@ export default function WalletTab({
               exit={{ opacity: 0, scale: 0.95 }}
               className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto"
             >
-              <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <div className="flex items-center justify-between border-b border-emerald-100 pb-3">
                 <div>
-                  <h3 className="text-lg font-black text-gray-900">Historique des Paiements</h3>
-                  <p className="text-xs text-gray-500">Reçus certifiés conformes par l'État béninois</p>
+                  <h3 className="text-2xl font-black text-emerald-950">Mon Wallet</h3>
+                  <p className="text-sm text-emerald-700">Solde, factures et transactions</p>
                 </div>
                 <button onClick={() => setActiveModal(null)} className="text-gray-400 hover:text-gray-700 p-1 cursor-pointer"><X className="w-5 h-5" /></button>
               </div>
 
+              <div className="rounded-[32px_32px_8px_32px] bg-gradient-to-br from-emerald-700 via-emerald-600 to-teal-500 p-5 text-white shadow-lg">
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-100">Solde disponible</p>
+                <p className="mt-2 text-4xl font-black">{balance.toLocaleString('fr-FR')} <span className="text-base">FCFA</span></p>
+                <p className="mt-1 text-sm font-bold text-emerald-100">≈ {(satoshiBalance / 100000000).toFixed(5)} BTC · {satoshiBalance.toLocaleString('fr-FR')} Sats</p>
+                <div className="mt-5 flex flex-wrap gap-2">
+                  <button type="button" onClick={() => setActiveModal('topup')} className="min-h-[44px] rounded-xl bg-white px-4 py-2 text-xs font-black text-emerald-800 hover:bg-emerald-50"><Zap className="mr-1 inline h-4 w-4" />Recharger</button>
+                  <button type="button" className="min-h-[44px] rounded-xl border border-white/50 px-4 py-2 text-xs font-black text-white hover:bg-white/10">Envoyer</button>
+                  <button type="button" className="min-h-[44px] rounded-xl border border-white/50 px-4 py-2 text-xs font-black text-white hover:bg-white/10">Recevoir</button>
+                </div>
+              </div>
+
+              {invoices.find(invoice => !invoice.isPaid) && (
+                <div className="rounded-[24px_24px_8px_24px] border border-emerald-200 bg-emerald-50 p-4">
+                  <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">Facture à payer</p>
+                  <h4 className="mt-1 text-lg font-black text-emerald-950">{invoices.find(invoice => !invoice.isPaid)?.hospitalName}</h4>
+                  <p className="text-xs font-bold text-emerald-700">Consultation · {invoices.find(invoice => !invoice.isPaid)?.date}</p>
+                  <p className="mt-2 text-xl font-black text-emerald-950">{invoices.find(invoice => !invoice.isPaid)?.totalXOF.toLocaleString('fr-FR')} FCFA</p>
+                  <div className="mt-3 flex flex-wrap gap-2"><button type="button" className="min-h-[44px] rounded-xl bg-emerald-600 px-3 py-2 text-xs font-black text-white">Payer avec Lightning</button><button type="button" className="min-h-[44px] rounded-xl bg-white px-3 py-2 text-xs font-black text-emerald-800">Mobile Money</button><button type="button" className="min-h-[44px] rounded-xl bg-white px-3 py-2 text-xs font-black text-emerald-800">Carte</button></div>
+                </div>
+              )}
+
+              <div className="flex items-center gap-2 text-sm font-black text-emerald-800"><Wallet className="h-4 w-4" />Historique des transactions</div>
+
               <div className="space-y-3">
                 {invoices.length > 0 ? (
                   invoices.map(inv => (
-                    <div key={inv.id} className="p-4 bg-slate-50 border border-gray-200 rounded-2xl flex items-center justify-between gap-4">
+                    <div key={inv.id} className="rounded-[24px_24px_8px_24px] border border-emerald-100 bg-emerald-50/50 p-4 flex items-center justify-between gap-4">
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold text-[10px] rounded-md">
-                            PAYÉ
+                            {inv.isPaid ? 'PAYÉ' : 'À PAYER'}
                           </span>
-                          <span className="text-xs text-gray-400">{inv.date}</span>
+                          <span className="text-xs font-bold text-emerald-600">{inv.date}</span>
                         </div>
-                        <h4 className="font-bold text-sm text-gray-900 mt-1">{inv.hospitalName}</h4>
-                        <p className="text-xs text-gray-500">Méthode : {inv.paymentMethod} • Réf: {inv.id.substring(0, 10)}</p>
+                        <h4 className="mt-1 text-sm font-black text-emerald-950">{inv.hospitalName}</h4>
+                        <p className="text-xs font-bold text-emerald-700">Méthode : {inv.paymentMethod} · Réf: {inv.id.substring(0, 10)}</p>
                       </div>
                       <div className="text-right">
-                        <span className="font-black text-sm text-gray-900 block">{inv.totalXOF.toLocaleString('fr-FR')} FCFA</span>
+                        <span className="block text-sm font-black text-emerald-950">{inv.totalXOF.toLocaleString('fr-FR')} FCFA</span>
                         <button
                           onClick={() => onSelectInvoice(inv)}
-                          className="text-[11px] font-bold text-emerald-700 hover:underline cursor-pointer"
+                          className="text-[11px] font-black text-emerald-700 hover:underline cursor-pointer"
                         >
                           Voir Reçu
                         </button>
@@ -709,7 +834,7 @@ export default function WalletTab({
                     </div>
                   ))
                 ) : (
-                  <div className="p-6 bg-slate-50 rounded-2xl text-center text-xs text-gray-500">
+                  <div className="rounded-2xl border border-dashed border-emerald-200 bg-emerald-50 p-6 text-center text-sm text-emerald-700">
                     Aucun paiement récent enregistré.
                   </div>
                 )}
@@ -750,50 +875,55 @@ export default function WalletTab({
               )}
 
               {/* Toggle Vue Tontines / Création */}
-              <div className="flex bg-slate-100 p-1 rounded-xl gap-1 text-xs font-bold">
+              <div className="grid grid-cols-3 gap-1 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-1.5 text-xs font-bold">
                 <button
-                  onClick={() => setShowCreateTontine(false)}
-                  className={`flex-1 py-2 rounded-lg cursor-pointer transition-all ${!showCreateTontine ? 'bg-white shadow-xs text-gray-900' : 'text-gray-500 hover:text-gray-800'}`}
+                  onClick={() => { setShowCreateTontine(false); setTontineTab('groups'); }}
+                  className={`min-h-[44px] rounded-xl cursor-pointer transition-all ${tontineTab === 'groups' ? 'bg-emerald-600 text-white shadow-xs' : 'text-emerald-800 hover:bg-white'}`}
                 >
-                  Mes Tontines Actives ({tontinesList.length})
+                  Mes groupes
                 </button>
                 <button
-                  onClick={() => setShowCreateTontine(true)}
-                  className={`flex-1 py-2 rounded-lg cursor-pointer transition-all flex items-center justify-center gap-1.5 ${showCreateTontine ? 'bg-white shadow-xs text-amber-700' : 'text-gray-500 hover:text-gray-800'}`}
+                  onClick={() => { setShowCreateTontine(false); setTontineTab('join'); }}
+                  className={`min-h-[44px] rounded-xl cursor-pointer transition-all ${tontineTab === 'join' ? 'bg-emerald-600 text-white shadow-xs' : 'text-emerald-800 hover:bg-white'}`}
                 >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Créer une Tontine</span>
+                  Rejoindre
+                </button>
+                <button
+                  onClick={() => { setShowCreateTontine(true); setTontineTab('create'); }}
+                  className={`min-h-[44px] rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1.5 ${tontineTab === 'create' ? 'bg-emerald-600 text-white shadow-xs' : 'text-emerald-800 hover:bg-white'}`}
+                >
+                  <Plus className="w-3.5 h-3.5" /> Créer
                 </button>
               </div>
 
-              {!showCreateTontine ? (
+              {tontineTab === 'groups' ? (
                 <div className="space-y-3">
                   {tontinesList.map((tontine) => (
-                    <div key={tontine.id} className="p-4 bg-gradient-to-br from-amber-50/70 to-orange-50/70 border border-amber-200/80 rounded-2xl space-y-3">
+                    <div key={tontine.id} className="rounded-[32px_32px_8px_32px] bg-emerald-50/60 border border-emerald-100 p-4 space-y-3 shadow-sm">
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <h4 className="font-bold text-gray-900 text-sm">{tontine.name}</h4>
-                          <p className="text-[11px] text-gray-600 line-clamp-1">{tontine.description}</p>
+                          <h4 className="font-black text-emerald-950 text-base">{tontine.name}</h4>
+                          <p className="text-xs text-emerald-700 line-clamp-1">{tontine.description}</p>
                         </div>
-                        <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full text-[10px] font-extrabold uppercase">
+                        <span className="px-2 py-0.5 bg-white text-emerald-800 rounded-full text-[10px] font-extrabold uppercase">
                           Actif
                         </span>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2 bg-white/80 p-2.5 rounded-xl border border-amber-100 text-xs">
+                      <div className="grid grid-cols-2 gap-2 bg-white/80 p-2.5 rounded-xl border border-emerald-100 text-xs">
                         <div>
-                          <span className="text-[10px] text-gray-500 block uppercase font-bold">Cagnotte Totale</span>
-                          <strong className="text-gray-900 text-sm">{Number(tontine.totalSavings || 0).toLocaleString()} FCFA</strong>
+                          <span className="text-[10px] text-emerald-600 block uppercase font-bold">Solde total</span>
+                          <strong className="text-emerald-950 text-sm">{Number(tontine.totalSavings || 0).toLocaleString()} FCFA</strong>
                         </div>
                         <div>
-                          <span className="text-[10px] text-gray-500 block uppercase font-bold">Cotisation / Mois</span>
-                          <strong className="text-amber-800 text-sm">{Number(tontine.monthlyContribution || 10000).toLocaleString()} FCFA</strong>
+                          <span className="text-[10px] text-emerald-600 block uppercase font-bold">Cotisation / mois</span>
+                          <strong className="text-emerald-800 text-sm">{Number(tontine.monthlyContribution || 10000).toLocaleString()} FCFA</strong>
                         </div>
                       </div>
 
                       <div className="flex items-center justify-between text-[11px] text-gray-500">
                         <span className="flex items-center gap-1">
-                          <Users className="w-3.5 h-3.5 text-amber-600" />
+                          <Users className="w-3.5 h-3.5 text-emerald-600" />
                           <span>{tontine.members || 1} membres actifs</span>
                         </span>
                         <span className="text-emerald-700 font-bold">Déblocage urgence immédiat</span>
@@ -802,7 +932,7 @@ export default function WalletTab({
                       <button
                         onClick={() => handleContributeTontine(tontine.id, Number(tontine.monthlyContribution) || 10000)}
                         disabled={tontineLoading}
-                        className="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-all shadow-xs disabled:opacity-50"
+                        className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-all shadow-xs disabled:opacity-50"
                       >
                         <Zap className="w-3.5 h-3.5" />
                         <span>Cotiser {(Number(tontine.monthlyContribution) || 10000).toLocaleString()} FCFA</span>
@@ -810,7 +940,7 @@ export default function WalletTab({
                     </div>
                   ))}
                 </div>
-              ) : (
+              ) : tontineTab === 'create' ? (
                 <form onSubmit={handleCreateNewTontine} className="space-y-3.5">
                   <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1">Nom de la Tontine Familiale / Communautaire</label>
@@ -820,7 +950,7 @@ export default function WalletTab({
                       placeholder="Ex: Tontine Familiale Dossou"
                       value={newTontineName}
                       onChange={(e) => setNewTontineName(e.target.value)}
-                      className="w-full h-10 px-3 border border-gray-200 rounded-xl text-xs focus:border-amber-500 focus:outline-none"
+                      className="w-full h-10 px-3 border border-emerald-200 rounded-xl text-xs focus:border-emerald-500 focus:outline-none"
                     />
                   </div>
 
@@ -829,7 +959,7 @@ export default function WalletTab({
                     <select
                       value={newTontineContrib}
                       onChange={(e) => setNewTontineContrib(e.target.value)}
-                      className="w-full h-10 px-3 border border-gray-200 rounded-xl text-xs focus:border-amber-500 focus:outline-none"
+                      className="w-full h-10 px-3 border border-emerald-200 rounded-xl text-xs focus:border-emerald-500 focus:outline-none"
                     >
                       <option value="5000">5 000 FCFA / mois</option>
                       <option value="10000">10 000 FCFA / mois</option>
@@ -838,20 +968,29 @@ export default function WalletTab({
                     </select>
                   </div>
 
-                  <p className="text-[11px] text-gray-500 bg-amber-50/70 p-2.5 rounded-xl border border-amber-200/50">
+                  <p className="text-xs text-emerald-700 bg-emerald-50 p-3 rounded-xl border border-emerald-100">
                     Les fonds sont conservés de manière transparente et peuvent être débloqués immédiatement vers n'importe quelle clinique conventionnée en cas de sinistre ou d'urgence.
                   </p>
 
                   <button
                     type="submit"
                     disabled={tontineLoading || !newTontineName.trim()}
-                    className="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer shadow-sm disabled:opacity-50"
+                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer shadow-sm disabled:opacity-50"
                   >
                     <PlusCircle className="w-4 h-4" />
                     <span>Créer et Activer la Tontine</span>
                   </button>
                 </form>
+              ) : (
+                <div className="space-y-3 rounded-[32px_32px_8px_32px] border border-emerald-100 bg-emerald-50/60 p-4">
+                  <p className="text-sm font-black text-emerald-950">Rejoindre une tontine</p>
+                  <p className="text-xs text-emerald-700">Saisissez le code d’invitation transmis par votre groupe familial ou communautaire.</p>
+                  <input placeholder="Code d’invitation" className="w-full rounded-xl border border-emerald-200 bg-white px-3 py-3 text-sm outline-none focus:border-emerald-500" />
+                  <button type="button" onClick={() => setTontineSuccessMsg('Votre demande de rejoindre le groupe a été envoyée.')} className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-black text-white hover:bg-emerald-700">Envoyer ma demande</button>
+                </div>
               )}
+
+              <div className="rounded-2xl border border-emerald-100 bg-white p-4 breathe-signature"><p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">Sécurité</p><p className="mt-1 text-sm font-bold text-emerald-950">Multi-signatures 2-of-3</p><p className="mt-1 text-xs text-emerald-700">Transactions horodatées et vérifiables sur Bitcoin.</p></div>
 
               <button
                 onClick={() => {
@@ -1095,67 +1234,80 @@ export default function WalletTab({
               exit={{ opacity: 0, scale: 0.95 }}
               className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto"
             >
-              <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <div className="flex items-center justify-between border-b border-emerald-100 pb-3">
                 <div>
-                  <h3 className="text-lg font-black text-gray-900">Dossier Médical Numérique</h3>
-                  <p className="text-xs text-gray-500">Analyses, antécédents et consultations</p>
+                  <h3 className="text-2xl font-black text-emerald-950">Mon Dossier Médical</h3>
+                  <p className="text-sm text-emerald-700">Historique, traitements et examens sécurisés</p>
                 </div>
                 <button onClick={() => setActiveModal(null)} className="text-gray-400 hover:text-gray-700 p-1 cursor-pointer"><X className="w-5 h-5" /></button>
               </div>
 
               {/* Patient Identity Badge */}
-              <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center justify-between">
+              <div className="rounded-[32px_32px_8px_32px] border border-emerald-100 bg-emerald-50 p-4">
                 <div>
-                  <span className="font-black text-sm text-emerald-950 block">{fullName}</span>
-                  <span className="text-xs text-emerald-800 font-mono">NPI : {npi}</span>
+                  <span className="block text-xl font-black text-emerald-950">{fullName}</span>
+                  <span className="text-xs font-bold text-emerald-800">{patientUser?.dateOfBirth ? `${patientUser.dateOfBirth} · ` : ''}{patientUser?.gender || 'Patient'} · Groupe {bloodGroup}</span>
+                  <span className="mt-1 block text-xs font-bold text-emerald-700">Allergies : {patientUser?.allergies || 'Aucune'}</span>
+                  <span className="mt-1 block text-xs font-mono font-bold text-emerald-700">NPI : {npi}</span>
                 </div>
-                <span className="px-3 py-1 bg-white text-emerald-800 font-black text-xs rounded-full border border-emerald-200">
-                  Groupe {bloodGroup}
-                </span>
+                <div className="mt-4 rounded-2xl border border-emerald-100 bg-white p-3"><div className="flex items-center justify-between text-xs font-black text-emerald-800"><span>État de santé global</span><span>80%</span></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-emerald-100"><div className="h-full w-4/5 rounded-full bg-emerald-600" /></div><p className="mt-2 text-xs font-bold text-emerald-700">Bon état général</p></div>
               </div>
+
+              <div className="grid grid-cols-3 gap-1 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-1.5 sm:grid-cols-7">
+                {([['all', 'Tout'], ['consultations', 'Consult'], ['prescriptions', 'Presc'], ['analyses', 'Analy'], ['exams', 'Exam'], ['blood', 'Don'], ['vaccines', 'Vacc']] as const).map(([tab, label]) => <button key={tab} type="button" onClick={() => setMedicalTab(tab)} className={`min-h-[44px] rounded-xl px-2 py-2 text-[11px] font-black transition ${medicalTab === tab ? 'bg-emerald-600 text-white shadow-sm' : 'text-emerald-800 hover:bg-white'}`}>{label}</button>)}
+              </div>
+
+              <div className="flex items-center gap-2 text-xs font-black text-emerald-800"><Calendar className="h-4 w-4" />Filtrer la période</div>
+              <div className="flex gap-2"><button type="button" onClick={() => setMedicalPeriod('all')} className={`rounded-full px-3 py-1.5 text-xs font-bold ${medicalPeriod === 'all' ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-800'}`}>Tout</button><button type="button" onClick={() => setMedicalPeriod('6months')} className={`rounded-full px-3 py-1.5 text-xs font-bold ${medicalPeriod === '6months' ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-800'}`}>6 mois</button><button type="button" onClick={() => setMedicalPeriod('1year')} className={`rounded-full px-3 py-1.5 text-xs font-bold ${medicalPeriod === '1year' ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-800'}`}>1 an</button></div>
 
               {/* Consultations et prescriptions synchronisées depuis le dossier central */}
               <div className="space-y-3">
-                <h4 className="text-xs font-black uppercase text-gray-500">Derniers Actes & Examens</h4>
+                <h4 className="text-xs font-black uppercase text-emerald-700">Chronologie médicale</h4>
                 {clinicalRecord.consultations.length === 0 && clinicalRecord.prescriptions.length === 0 ? (
                   <div className="p-5 bg-slate-50 border border-dashed border-slate-300 rounded-2xl text-center text-sm text-slate-500">
                     Aucune consultation ni ordonnance enregistrée.
                   </div>
                 ) : (
                   <>
-                    {clinicalRecord.consultations.map((consultation) => (
-                      <div key={consultation.id} className="p-4 bg-slate-50 border border-gray-200 rounded-2xl space-y-2">
+                    {clinicalRecord.consultations.filter(() => medicalTab === 'all' || medicalTab === 'consultations').map((consultation) => (
+                      <div key={consultation.id} className="rounded-[24px_24px_8px_24px] border border-emerald-100 bg-emerald-50/50 p-4 space-y-2">
                         <div className="flex items-center justify-between gap-3">
-                          <span className="text-xs font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md">Consultation</span>
-                          <span className="text-xs text-gray-400">{new Date(consultation.consultationDate).toLocaleDateString('fr-FR')}</span>
+                          <span className="text-xs font-black uppercase text-emerald-800">Consultation</span>
+                          <span className="text-xs font-bold text-emerald-600">{new Date(consultation.consultationDate).toLocaleDateString('fr-FR')}</span>
                         </div>
-                        <strong className="text-sm text-gray-900 block">{consultation.diagnosis}</strong>
-                        <p className="text-xs text-gray-600">Médecin : {consultation.doctorName || 'Praticien'}</p>
+                        <strong className="block text-base font-black text-emerald-950">{consultation.diagnosis}</strong>
+                        <p className="text-xs font-bold text-emerald-700">Médecin : {consultation.doctorName || 'Praticien'} · {consultation.treatment || 'Traitement renseigné'}</p>
+                        <button type="button" className="text-xs font-black text-emerald-800 hover:underline">Voir le détail complet →</button>
                       </div>
                     ))}
-                    {clinicalRecord.prescriptions.map((prescription) => (
-                      <div key={prescription.id} className="p-4 bg-slate-50 border border-gray-200 rounded-2xl space-y-2">
+                    {clinicalRecord.prescriptions.filter(() => medicalTab === 'all' || medicalTab === 'prescriptions').map((prescription) => (
+                      <div key={prescription.id} className="rounded-[24px_24px_8px_24px] border border-emerald-100 bg-white p-4 space-y-2">
                         <div className="flex items-center justify-between gap-3">
-                          <span className="text-xs font-bold text-blue-800 bg-blue-100 px-2 py-0.5 rounded-md">Ordonnance</span>
-                          <span className="text-xs text-gray-400">{new Date(prescription.createdAt).toLocaleDateString('fr-FR')}</span>
+                          <span className="text-xs font-black uppercase text-emerald-800">Ordonnance</span>
+                          <span className="text-xs font-bold text-emerald-600">{prescription.createdAt ? new Date(prescription.createdAt).toLocaleDateString('fr-FR') : 'Date non renseignée'}</span>
                         </div>
-                        <strong className="text-sm text-gray-900 block">{prescription.medication}</strong>
-                        <p className="text-xs text-gray-600">{prescription.dosage || 'Posologie non renseignée'} · {prescription.frequency || 'Fréquence non renseignée'}</p>
+                        <strong className="block text-base font-black text-emerald-950">{prescription.medication}</strong>
+                        <p className="text-xs font-bold text-emerald-700">{prescription.dosage || 'Posologie non renseignée'} · {prescription.frequency || 'Fréquence non renseignée'}</p>
+                        <button type="button" onClick={() => setActiveModal('prescriptions')} className="text-xs font-black text-emerald-800 hover:underline">Voir l’ordonnance →</button>
                       </div>
                     ))}
                   </>
                 )}
               </div>
 
+              <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => {
                   speakText(`Dossier médical de ${fullName}, identifiant ${npi}. ${clinicalRecord.consultations.length} consultation(s) et ${clinicalRecord.prescriptions.length} ordonnance(s) enregistrée(s).`);
                 }}
-                className="w-full py-3 bg-[#059669] hover:bg-[#047857] text-white font-bold rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 cursor-pointer"
+                className="flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-600 py-3 text-xs font-bold text-white hover:bg-emerald-700 cursor-pointer"
               >
                 <Volume2 className="w-4 h-4" />
                 <span>Écouter le résumé du dossier</span>
               </button>
+              <button type="button" onClick={() => window.print()} className="flex min-h-[44px] items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-xs font-black text-emerald-800 hover:bg-emerald-50"><Download className="h-4 w-4" />Télécharger</button>
+              <button type="button" onClick={() => { if (navigator.share) navigator.share({ title: 'Mon dossier médical Santé+', text: `Dossier médical de ${fullName}` }); }} className="flex min-h-[44px] items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-xs font-black text-emerald-800 hover:bg-emerald-50">Partager</button>
+              </div>
             </motion.div>
           </div>
         )}

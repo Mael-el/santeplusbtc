@@ -65,6 +65,14 @@ export default function App() {
   const [satoshiBalance, setSatoshiBalance] = useState<number>(0);
   const [showProfileModal, setShowProfileModal] = useState<boolean>(false);
   const [showEmergencyModal, setShowEmergencyModal] = useState<boolean>(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [patientNotifications, setPatientNotifications] = useState<Array<{
+    id: string;
+    title: string;
+    message: string;
+    timestamp: string;
+    read: boolean;
+  }>>([]);
   const [initialAuthRole, setInitialAuthRole] = useState<'patient' | 'doctor' | 'hospital'>('patient');
 
   useEffect(() => {
@@ -110,10 +118,30 @@ export default function App() {
       }
     };
 
+    void refreshPatientData();
+
     return subscribeRealtime((event) => {
       window.dispatchEvent(new CustomEvent('sante-realtime', { detail: event }));
       if (['appointment', 'medical-document', 'invoice', 'consultation', 'prescription', 'patient'].includes(event.entity)) {
         refreshPatientData();
+      }
+      if (patientUser && (event.entity === 'consultation' || event.entity === 'prescription')) {
+        const isPrescription = event.entity === 'prescription';
+        const notification = {
+          id: `${event.entity}-${event.entityId || event.timestamp}`,
+          title: isPrescription ? 'Nouvelle ordonnance reçue' : 'Dossier médical mis à jour',
+          message: isPrescription
+            ? 'Votre médecin vient de transmettre un nouveau traitement.'
+            : 'Une nouvelle consultation a été ajoutée à votre dossier médical.',
+          timestamp: event.timestamp,
+          read: false,
+        };
+        setPatientNotifications(current => {
+          if (current.some(item => item.id === notification.id)) return current;
+          const next = [notification, ...current].slice(0, 10);
+          localStorage.setItem('sante_patient_notifications', JSON.stringify(next));
+          return next;
+        });
       }
     });
   }, [patientUser, hospitalUser]);
@@ -128,6 +156,37 @@ export default function App() {
       })
       .catch(() => setHospitals(HOSPITALS));
 
+    // Restauration automatique de session
+    const savedRole = localStorage.getItem('sante_role');
+    if (savedRole === 'hospital') {
+      const savedHospitalUser = localStorage.getItem('sante_hospital_user');
+      const savedHospitalToken = localStorage.getItem('sante_hospital_token');
+      if (savedHospitalUser) {
+        try {
+          const parsed = JSON.parse(savedHospitalUser);
+          const fullUser: HospitalUser = {
+            ...parsed,
+            token: savedHospitalToken || parsed.token || '',
+          };
+          setHospitalUser(fullUser);
+          if (fullUser.role === 'superadmin') setView('platform-owner');
+          else if (fullUser.role === 'admin') setView('director-admin');
+          else if (fullUser.role === 'doctor') setView('doctor-dashboard');
+          else setView('hospital-dashboard');
+        } catch (e) {}
+      }
+    } else if (savedRole === 'patient') {
+      const savedPatientProfile = localStorage.getItem('sante_patient_profile');
+      if (savedPatientProfile) {
+        try {
+          const parsed = JSON.parse(savedPatientProfile);
+          setPatientUser(parsed);
+          setWalletBalance(parsed.walletBalance || 0);
+          if (parsed.satoshiBalance !== undefined) setSatoshiBalance(parsed.satoshiBalance);
+          setView('wallet');
+        } catch (e) {}
+      }
+    }
   }, []);
 
   // Handlers for Login & Logout
@@ -136,6 +195,13 @@ export default function App() {
     localStorage.setItem('sante_patient_email', pat.email);
     localStorage.setItem('sante_patient_profile', JSON.stringify(pat));
     setPatientUser(pat);
+    try {
+      const savedNotifications = JSON.parse(localStorage.getItem('sante_patient_notifications') || '[]');
+      setPatientNotifications(Array.isArray(savedNotifications) ? savedNotifications : []);
+    } catch {
+      setPatientNotifications([]);
+    }
+    setShowNotifications(false);
     setHospitalUser(null);
     setWalletBalance(pat.walletBalance || 0);
     if (pat.satoshiBalance !== undefined) setSatoshiBalance(pat.satoshiBalance);
@@ -169,6 +235,8 @@ export default function App() {
     localStorage.removeItem('sante_hospital_user');
     localStorage.removeItem('sante_hospital_token');
     setPatientUser(null);
+    setPatientNotifications([]);
+    setShowNotifications(false);
     setHospitalUser(null);
     setView('landing');
   };
@@ -227,7 +295,7 @@ export default function App() {
   // --------------------------------------------------------------------------
   if (view === 'auth') {
     return (
-      <div className="min-h-screen bg-[#F8FAFC] flex flex-col justify-center items-center font-sans">
+      <div className="auth-page min-h-screen flex flex-col justify-center items-center font-sans">
         <Auth
           onPatientLogin={handlePatientLogin}
           onHospitalLogin={handleHospitalLogin}
@@ -243,10 +311,10 @@ export default function App() {
   // 2. MAIN APPLICATION PAGES (SANS MENU LATÉRAL NI ONGLETS DU HAUT)
   // --------------------------------------------------------------------------
   return (
-    <div className="min-h-screen flex flex-col font-sans text-[#0F172A]">
+    <div className={`min-h-screen flex flex-col font-sans text-[#0F172A] ${patientUser ? 'patient-app' : ''}`}>
       
       {/* En-tête épuré médical : Logo Santé+ et Profil */}
-      <header className="bg-white/90 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-40 px-4 sm:px-8 py-2.5 flex items-center justify-between shadow-xs">
+      <header className="patient-app-header bg-white/90 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-40 px-4 sm:px-8 py-2.5 flex items-center justify-between shadow-xs">
         
         {/* Logo Santé+ avec Badge Officiel */}
         <div 
@@ -264,6 +332,22 @@ export default function App() {
         <div className="flex items-center gap-2.5">
           {patientUser ? (
             <div className="flex items-center gap-2 bg-slate-50 border border-slate-200/80 rounded-2xl p-1 pr-2">
+              <button
+                onClick={() => {
+                  setShowNotifications(current => !current);
+                  setPatientNotifications(current => {
+                    const next = current.map(item => ({ ...item, read: true }));
+                    localStorage.setItem('sante_patient_notifications', JSON.stringify(next));
+                    return next;
+                  });
+                }}
+                className="relative p-2 text-slate-500 hover:bg-white hover:text-emerald-700 rounded-xl transition"
+                title="Notifications médicales"
+                aria-label="Notifications médicales"
+              >
+                <Bell className="w-4 h-4" />
+                {patientNotifications.some(item => !item.read) && <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500" />}
+              </button>
               <button
                 onClick={() => setShowProfileModal(true)}
                 className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-xs cursor-pointer shadow-xs hover:bg-emerald-700 transition-colors"
@@ -287,6 +371,23 @@ export default function App() {
               >
                 <LogOut className="w-4 h-4" />
               </button>
+              {showNotifications && (
+                <div className="absolute right-4 top-14 z-50 w-[min(22rem,calc(100vw-2rem))] rounded-2xl border border-slate-200 bg-white p-3 shadow-xl">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                    <p className="text-sm font-black text-slate-900">Notifications médicales</p>
+                    <button onClick={() => setShowNotifications(false)} className="text-xs font-bold text-slate-400 hover:text-slate-700">Fermer</button>
+                  </div>
+                  {patientNotifications.length === 0 ? (
+                    <p className="p-4 text-center text-xs text-slate-500">Aucune nouvelle notification.</p>
+                  ) : patientNotifications.map(item => (
+                    <div key={item.id} className="border-b border-slate-100 py-3 last:border-0">
+                      <p className="text-xs font-black text-emerald-800">{item.title}</p>
+                      <p className="mt-1 text-xs text-slate-600">{item.message}</p>
+                      <p className="mt-1 text-[10px] text-slate-400">{new Date(item.timestamp).toLocaleString('fr-FR')}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ) : hospitalUser ? (
             <div className="flex items-center gap-2 bg-slate-50 border border-slate-200/80 rounded-2xl p-1 pr-2">
@@ -342,7 +443,9 @@ export default function App() {
       )}
 
       {/* Corps Principal Calibré (Pleine largeur confortable, centré et compact) */}
-      <main className="flex-1 w-full max-w-7xl mx-auto p-3 sm:p-5 lg:p-6 overflow-y-auto">
+      <main className={`flex-1 w-full max-w-7xl mx-auto p-3 sm:p-5 lg:p-6 overflow-visible ${
+        hospitalUser ? 'role-app-main' : patientUser ? 'patient-app-main' : ''
+      }`}>
         <Suspense fallback={
           <div className="min-h-[400px] flex flex-col items-center justify-center p-8 space-y-4">
             <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
@@ -390,6 +493,7 @@ export default function App() {
                 patientUser={patientUser}
                 customDocuments={customDocuments}
                 clinicalRecord={clinicalRecord}
+                notifications={patientNotifications}
                 appointments={appointments}
                 onNavigateToMap={() => setView('map')}
                 onNavigateToAppointments={() => setView('appointments')}
@@ -440,7 +544,7 @@ export default function App() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="max-w-6xl mx-auto space-y-4"
+              className="patient-flow-view max-w-6xl mx-auto space-y-4"
             >
               <button
                 onClick={() => {
@@ -474,7 +578,7 @@ export default function App() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0 }}
-              className="max-w-6xl mx-auto"
+              className="patient-flow-view max-w-6xl mx-auto"
             >
               <HospitalDetails
                 hospital={selectedHospital}
@@ -492,7 +596,7 @@ export default function App() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="max-w-4xl mx-auto space-y-4"
+              className="patient-flow-view max-w-4xl mx-auto space-y-4"
             >
               <button
                 onClick={() => {
@@ -509,6 +613,7 @@ export default function App() {
                 onBack={() => setView('map')}
                 onConfirm={handleConfirmAppointment}
                 patientUser={patientUser}
+                appointments={appointments}
               />
             </motion.div>
           )}
@@ -520,7 +625,7 @@ export default function App() {
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0 }}
-              className="max-w-4xl mx-auto space-y-4"
+              className="patient-flow-view max-w-4xl mx-auto space-y-4"
             >
               <button
                 onClick={() => {
@@ -560,7 +665,7 @@ export default function App() {
           setShowEmergencyModal(true);
           speakEmergency();
         }}
-        className="fixed bottom-5 right-5 z-40 px-3.5 py-2.5 rounded-full bg-red-600 hover:bg-red-700 text-white shadow-xl shadow-red-600/30 flex items-center gap-2 font-black text-xs transition-all hover:scale-105 cursor-pointer pulse-emergency border border-red-400"
+        className={`fixed patient-emergency-button bottom-5 right-5 z-40 px-3.5 py-2.5 rounded-full bg-red-600 hover:bg-red-700 text-white shadow-xl shadow-red-600/30 flex items-center gap-2 font-black text-xs transition-all hover:scale-105 cursor-pointer pulse-emergency border border-red-400 ${patientUser ? 'patient-only-control' : ''}`}
         title="Bouton Urgence Médicale SAMU 15"
       >
         <PhoneCall className="w-4 h-4 animate-bounce shrink-0" />
@@ -574,7 +679,7 @@ export default function App() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5 text-center"
+            className="patient-emergency-modal bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5 text-center"
           >
             <div className="w-16 h-16 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto animate-pulse">
               <PhoneCall className="w-8 h-8" />

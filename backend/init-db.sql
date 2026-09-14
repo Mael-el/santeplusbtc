@@ -10,7 +10,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
-    email VARCHAR(255) UNIQUE NOT NULL,
+    email VARCHAR(255) UNIQUE,
     phone VARCHAR(20) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     role VARCHAR(20) NOT NULL DEFAULT 'patient',
@@ -23,13 +23,14 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+ALTER TABLE users ALTER COLUMN email DROP NOT NULL;
 
 -- Registre d'identité séparé : aucune donnée médicale n'est stockée ici.
 CREATE TABLE IF NOT EXISTS identity_registry (
     identity_uuid UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE,
     role VARCHAR(20) NOT NULL,
-    email VARCHAR(255) NOT NULL,
+    email VARCHAR(255),
     phone VARCHAR(30) NOT NULL,
     npi VARCHAR(32) NOT NULL,
     qr_code_hash VARCHAR(128),
@@ -45,6 +46,7 @@ CREATE TABLE IF NOT EXISTS identity_registry (
 CREATE INDEX IF NOT EXISTS idx_identity_registry_lookup_npi ON identity_registry(npi);
 CREATE INDEX IF NOT EXISTS idx_identity_registry_lookup_phone ON identity_registry(phone);
 CREATE INDEX IF NOT EXISTS idx_identity_registry_lookup_qr ON identity_registry(qr_code_hash);
+ALTER TABLE identity_registry ALTER COLUMN email DROP NOT NULL;
 
 -- ============================================================================
 -- TABLE PATIENTS
@@ -61,6 +63,7 @@ CREATE TABLE IF NOT EXISTS patients (
     npi VARCHAR(13) UNIQUE NOT NULL,
     blood_type VARCHAR(5),
     allergies TEXT,
+    emergency_contacts JSONB DEFAULT '[]'::jsonb,
     chronic_diseases TEXT,
     blood_donor_status VARCHAR(50) DEFAULT 'non_donneur',
     qr_code_hash VARCHAR(64) UNIQUE NOT NULL,
@@ -73,6 +76,7 @@ CREATE TABLE IF NOT EXISTS patients (
 CREATE INDEX IF NOT EXISTS idx_patients_user_id ON patients(user_id);
 CREATE INDEX IF NOT EXISTS idx_patients_npi ON patients(npi);
 ALTER TABLE patients ADD COLUMN IF NOT EXISTS identity_uuid UUID UNIQUE REFERENCES identity_registry(identity_uuid) ON DELETE RESTRICT;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS emergency_contacts JSONB DEFAULT '[]'::jsonb;
 CREATE INDEX IF NOT EXISTS idx_patients_identity_uuid ON patients(identity_uuid);
 
 -- Migration des patients existants vers le registre d'identité pseudonymisé.
@@ -617,7 +621,9 @@ INSERT INTO users (id, email, phone, password_hash, role)
 VALUES
     (1, 'admin@santeplus.bj', '+229 21 00 00 01', '$2b$10$BmyP6HBNJrVaUzvt37Kl5OSqWxYY3ac31nXY5WrOfdwA//05HilgS', 'admin'),
     (2, 'direction@hz-calavi.bj', '+229 21 36 01 20', '$2b$10$8DMwuun/n6XdAIsKVtjg8OPlkVXfU3mLIV8dB2hO6s.OLZszRsATO', 'admin'),
-    (3, 'dr.sossou@hz-calavi.bj', '+229 97 88 55 44', '$2b$10$k9.QpoG34Smk85Vo6NDd9uB0Hoa5iY.iI273l/9EvhTzw6WvB173S', 'doctor')
+    (3, 'dr.sossou@hz-calavi.bj', '+229 97 88 55 44', '$2b$10$k9.QpoG34Smk85Vo6NDd9uB0Hoa5iY.iI273l/9EvhTzw6WvB173S', 'doctor'),
+    (4, 'medecin.demo@santeplus.bj', '+229 97 00 00 04', '$2b$10$/AtZ4V5bprp1w7OVUDGG9O8.8hCqvZMGXmc08WgrimOhkxHyQLh9m', 'doctor'),
+    (5, 'hopital.demo@santeplus.bj', '+229 97 00 00 05', '$2b$10$I1Kd7dMU0VYEOQLpMwkkQeyHYo4akz51xbb2j0rbJJ0mY67BVEkEq', 'admin')
 ON CONFLICT (email) DO NOTHING;
 
 SELECT setval('users_id_seq', (SELECT MAX(id) FROM users));
@@ -626,6 +632,11 @@ SELECT setval('users_id_seq', (SELECT MAX(id) FROM users));
 INSERT INTO doctors (user_id, first_name, last_name, specialty, license_number, npi, hospital_id, consultation_fee)
 VALUES
     (3, 'Jean', 'Sossou', 'Médecine Générale', 'ONMB-2020-001', 'BJ-1097-8855', 1, 5000)
+ON CONFLICT (user_id) DO NOTHING;
+
+INSERT INTO doctors (user_id, first_name, last_name, specialty, license_number, npi, hospital_id, consultation_fee)
+VALUES
+    (4, 'Démonstration', 'Médecin', 'Médecine Générale', 'ONMB-DEMO-004', 'BJ-1097-8856', 1, 5000)
 ON CONFLICT (user_id) DO NOTHING;
 
 

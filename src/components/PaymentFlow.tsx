@@ -1001,7 +1001,7 @@ Statut: ${isPaid ? 'PAYÉ & CERTIFIÉ' : 'EN ATTENTE DE PAIEMENT (SATS ou WALLET
                 <hr className="border-gray-100" />
 
                 {/* Details grid */}
-                <div className="grid grid-cols-2 gap-4 text-xs font-sans">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-sans">
                   <div>
                     <span className="text-gray-400 font-sans block">Patient</span>
                     <strong className="text-gray-800 font-sans font-bold block mt-0.5">{invoice.patientName}</strong>
@@ -1014,7 +1014,7 @@ Statut: ${isPaid ? 'PAYÉ & CERTIFIÉ' : 'EN ATTENTE DE PAIEMENT (SATS ou WALLET
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 text-xs font-sans">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-sans">
                   <div>
                     <span className="text-gray-400 font-sans block">Date de paiement</span>
                     <span className="text-gray-700 font-sans block mt-0.5">{invoice.date}</span>

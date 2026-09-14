@@ -45,7 +45,7 @@ export default function PlatformOwnerDashboard({ user, onLogout }: PlatformOwner
   ] : [];
 
   return (
-    <main className="min-h-screen bg-slate-950 px-4 py-8 text-white sm:px-8">
+    <main className="role-dashboard min-h-screen bg-slate-950 px-4 py-8 text-white sm:px-8">
       <div className="mx-auto max-w-7xl">
         <header className="mb-8 flex flex-col justify-between gap-4 border-b border-white/10 pb-6 sm:flex-row sm:items-center">
           <div>

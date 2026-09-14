@@ -321,7 +321,7 @@
   "HOSPITAL_USERS_DB": [
     {
       "email": "admin@santeplus.bj",
-      "password": "$2b$10$xkSCAOAMwayiWDYZdVQflOQPdZfl628v2v.UssX1PNiXtIb7jXVZe",
+      "password": "$2b$10$r9Et4PwvDcn9D5QRl9GZ3u/PXsxopuq/n79/arI.l8f09pmRSVXYq",
       "hospitalId": "system-admin",
       "role": "superadmin",
       "name": "Super Administrateur Santé+",
@@ -329,7 +329,7 @@
     },
     {
       "email": "direction@hz-calavi.bj",
-      "password": "$2b$10$GG8bj4nMTXOnbXYVIfDEdOmATB0KR75yZ2kVWP91ouWUpKSxPRAau",
+      "password": "$2b$10$adJGMQOE8eqPYpWH10pDY.kxdGbUt.J8k6R/ivmkPvFKxiivz89Si",
       "hospitalId": "hz-calavi",
       "role": "admin",
       "name": "Directeur HZ Calavi & Sô-Ava",
@@ -337,54 +337,11 @@
     },
     {
       "email": "dr.sossou@hz-calavi.bj",
-      "password": "$2b$10$TxlNhaz4bGNPapY9O82tL.welB2b89jdi.6XC6QkjyqSfjCV6s15y",
+      "password": "$2b$10$qyAEtWZAvQtQyWHzgmkjXeLgZzBQeBN56XdsIw6lrSM.RdRnoOV0G",
       "hospitalId": "hz-calavi",
       "role": "doctor",
       "name": "Dr. Jean Sossou",
       "id": 3
     }
-  ],
-  "AUTH_USERS_DB": [
-    {
-      "id": 1,
-      "email": "admin@santeplus.bj",
-      "phone": "+229 21 00 00 01",
-      "role": "admin",
-      "password_hash": "$2b$10$r0anwPdTQ33vNjfjWv7tEeFyuMIY05.XeuKgFE6b.onD9nR4Q5Bl6"
-    }
-  ],
-  "DOCTOR_CONSULTATIONS_DB": [],
-  "DOCTOR_CONSULTATION_DRAFTS_DB": [],
-  "DOCTOR_APPOINTMENTS_DB": [],
-  "DOCTOR_PATIENTS_DB": [
-    {
-      "id": "3",
-      "doctorId": "6",
-      "name": "jo ism",
-      "age": 31,
-      "blood": "AB-",
-      "allergies": "Aucune",
-      "npi": "BJ00000000009",
-      "status": "new",
-      "consultations": 0,
-      "lastVisit": "",
-      "email": "citoyen-0161791962@santeplus.bj"
-    },
-    {
-      "id": "1",
-      "doctorId": "6",
-      "name": "EXO Jean",
-      "age": 31,
-      "blood": "Non renseigné",
-      "allergies": "Aucune",
-      "npi": "BJ00000000005",
-      "status": "new",
-      "consultations": 0,
-      "lastVisit": "",
-      "email": "citoyen-0161791967@santeplus.bj"
-    }
-  ],
-  "DOCTOR_PRESCRIPTIONS_DB": [],
-  "DOCTOR_AUDIT_LOGS_DB": [],
-  "DOCTOR_PROFILES_DB": {}
+  ]
 }

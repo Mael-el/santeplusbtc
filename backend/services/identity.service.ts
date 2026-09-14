@@ -53,13 +53,42 @@ export async function resolvePatientIdentity(identifier: string): Promise<Patien
        LIMIT 1`,
       [identifier]
     );
-    return result?.rows[0];
+    if (result?.rows[0]) return result.rows[0];
+
+    // Older patient records may not have been copied to identity_registry yet.
+    const fallback = await dbService.query<PatientIdentity>(
+      `SELECT COALESCE(ir.identity_uuid, '') AS "identityUuid", u.id AS "userId",
+              p.id::text AS "patientId", u.email, u.phone,
+              COALESCE(p.npi, 'BJ' || LPAD(u.id::text, 11, '0')) AS npi,
+              p.qr_code_hash AS "qrCodeHash"
+       FROM users u
+       JOIN patients p ON p.user_id = u.id
+       LEFT JOIN identity_registry ir ON ir.user_id = u.id
+       WHERE u.role = 'patient'
+         AND (LOWER(COALESCE(u.email, '')) = LOWER($1)
+           OR regexp_replace(COALESCE(u.phone, ''), '[^0-9]', '', 'g') = regexp_replace($1, '[^0-9]', '', 'g')
+           OR regexp_replace(LOWER(COALESCE(p.npi, '')), '[^a-z0-9]', '', 'g') = regexp_replace(LOWER($1), '[^a-z0-9]', '', 'g')
+           OR p.id::text = $1
+           OR u.id::text = $1)
+       LIMIT 1`,
+      [identifier.trim()]
+    );
+    const fallbackIdentity = fallback?.rows[0];
+    if (fallbackIdentity && !fallbackIdentity.identityUuid) {
+      fallbackIdentity.identityUuid = identityUuidForUser(
+        Number(fallbackIdentity.userId),
+        fallbackIdentity.email || fallbackIdentity.phone
+      );
+    }
+    return fallbackIdentity;
   }
 
   if (!fs.existsSync(DB_FILE)) return undefined;
   const raw = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
   const users = Array.isArray(raw.AUTH_USERS_DB) ? raw.AUTH_USERS_DB : [];
   const profiles = raw.PATIENTS_DB && typeof raw.PATIENTS_DB === 'object' ? raw.PATIENTS_DB : {};
+
+  // 1. Chercher dans AUTH_USERS_DB
   const user = users.find((candidate: any) => {
     if (candidate.role !== 'patient') return false;
     const profile = profiles[candidate.email] || {};
@@ -69,16 +98,61 @@ export async function resolvePatientIdentity(identifier: string): Promise<Patien
       normalize(npi) === normalizedIdentifier ||
       normalize(candidate.id) === normalizedIdentifier;
   });
-  if (!user) return undefined;
+  if (user) {
+    const profile = profiles[user.email] || {};
+    return {
+      identityUuid: profile.identityUuid || identityUuidForUser(Number(user.id), user.email),
+      userId: Number(user.id),
+      patientId: String(user.id),
+      email: user.email,
+      phone: user.phone,
+      npi: profile.npi || canonicalPatientNpi(Number(user.id)),
+      qrCodeHash: profile.qrCodeHash,
+    };
+  }
 
-  const profile = profiles[user.email] || {};
-  return {
-    identityUuid: profile.identityUuid || identityUuidForUser(Number(user.id), user.email),
-    userId: Number(user.id),
-    patientId: String(user.id),
-    email: user.email,
-    phone: user.phone,
-    npi: profile.npi || canonicalPatientNpi(Number(user.id)),
-    qrCodeHash: profile.qrCodeHash,
-  };
+  // 2. Chercher dans PATIENTS_DB directement
+  for (const [key, prof] of Object.entries(profiles) as [string, any][]) {
+    const npi = prof?.npi || '';
+    const phone = prof?.phone || '';
+    const email = prof?.email || key;
+    const name = prof?.name || '';
+    if (
+      normalize(email) === normalizedIdentifier ||
+      normalize(phone) === normalizedIdentifier ||
+      normalize(npi) === normalizedIdentifier ||
+      normalize(name).includes(normalizedIdentifier) ||
+      normalize(prof?.identityUuid) === normalizedIdentifier
+    ) {
+      return {
+        identityUuid: prof.identityUuid || stableUuid(`santeplus:patient:${email}`),
+        userId: 100,
+        patientId: prof.npi || String(key),
+        email: email,
+        phone: phone,
+        npi: npi || 'BJ-CITOYEN',
+        qrCodeHash: prof.qrCodeHash,
+      };
+    }
+  }
+
+  // 3. Chercher dans DOCTOR_PATIENTS_DB
+  const doctorPatients = Array.isArray(raw.DOCTOR_PATIENTS_DB) ? raw.DOCTOR_PATIENTS_DB : [];
+  const docPatient = doctorPatients.find((p: any) =>
+    normalize(p.npi) === normalizedIdentifier ||
+    normalize(p.name).includes(normalizedIdentifier) ||
+    normalize(p.id) === normalizedIdentifier
+  );
+  if (docPatient) {
+    return {
+      identityUuid: stableUuid(`santeplus:patient:${docPatient.id}:${docPatient.name}`),
+      userId: Number(docPatient.id) || 101,
+      patientId: String(docPatient.id),
+      email: `${normalize(docPatient.name)}@patient.santeplus.bj`,
+      phone: '+229 97 00 00 01',
+      npi: docPatient.npi || `BJ${String(docPatient.id).padStart(11, '0')}`,
+    };
+  }
+
+  return undefined;
 }

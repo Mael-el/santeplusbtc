@@ -3,7 +3,8 @@ import { Patient } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   X, User, Phone, ShieldCheck, HeartPulse, 
-  Activity, ClipboardList, Check, AlertCircle, Loader2, Sparkles
+  Activity, ClipboardList, Check, AlertCircle, Loader2, Bell, Settings,
+  Moon, Languages, LockKeyhole, Fingerprint, Users
 } from 'lucide-react';
 
 interface UserProfileModalProps {
@@ -27,6 +28,9 @@ export default function UserProfileModal({ isOpen, onClose, patient, onUpdatePat
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const memberSince = patient.dateOfBirth ? 'Membre Santé+ actif' : 'Membre Santé+ depuis 2026';
 
   if (!isOpen) return null;
 
@@ -108,29 +112,31 @@ export default function UserProfileModal({ isOpen, onClose, patient, onUpdatePat
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+      <div className="patient-profile-modal fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 10 }}
           transition={{ type: 'spring', duration: 0.4 }}
-          className="bg-white w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl border border-gray-100 flex flex-col max-h-[90vh]"
+          className="bg-white w-full max-w-2xl rounded-[32px_32px_8px_32px] overflow-hidden shadow-2xl border border-emerald-100 flex flex-col max-h-[90vh]"
           id="user-profile-modal"
         >
           {/* Header */}
-          <div className="p-6 border-b border-gray-100 bg-[#059669]/5 flex items-center justify-between">
+          <div className="p-5 sm:p-6 border-b border-emerald-100 bg-emerald-50/70 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-[#059669]/10 rounded-2xl text-[#059669]">
-                <ShieldCheck className="w-6 h-6" />
+              <div className="relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-emerald-700 to-emerald-400 text-white shadow-lg pulse-signature">
+                <span className="text-lg font-black">{name.substring(0, 2).toUpperCase() || 'SP'}</span>
+                <span className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full border-2 border-white bg-emerald-500" />
               </div>
               <div>
-                <h3 className="text-lg font-black font-sans text-gray-900 tracking-tight">Souveraineté Numérique & Santé</h3>
-                <p className="text-xs text-gray-500 font-sans mt-0.5">Dossier médical décentralisé et auto-géré du Bénin</p>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-700">Mon profil</p>
+                <h3 className="text-2xl font-black text-emerald-950 tracking-tight">{name || 'Patient Santé+'}</h3>
+                <p className="text-xs text-emerald-700 font-mono mt-0.5">NPI : {npi || 'Non attribué'}</p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-all cursor-pointer"
+              className="p-2 text-emerald-700 hover:text-emerald-900 hover:bg-white rounded-xl transition-all cursor-pointer"
               title="Fermer"
             >
               <X className="w-5 h-5" />
@@ -138,16 +144,14 @@ export default function UserProfileModal({ isOpen, onClose, patient, onUpdatePat
           </div>
 
           {/* Form Content */}
-          <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
-            
-            {/* Notification banner */}
-            <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 flex items-start gap-3">
-              <Sparkles className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-              <p className="text-xs text-emerald-800 font-sans leading-relaxed">
-                Conformément au code d'éthique de l'<strong>ASIN Bénin</strong>, ces informations médicales sont confidentielles. Elles sont rattachées de manière sécurisée à votre identifiant national unique (NPI) et ne sont partagées avec les hôpitaux agréés que sous votre consentement explicite.
-              </p>
+          <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6">
+            <div className="grid grid-cols-2 gap-3 rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm sm:grid-cols-4">
+              <div><p className="text-[10px] font-bold uppercase text-emerald-600">Téléphone</p><p className="mt-1 truncate text-sm font-bold text-emerald-950">{phone || 'Non renseigné'}</p></div>
+              <div><p className="text-[10px] font-bold uppercase text-emerald-600">Email</p><p className="mt-1 truncate text-sm font-bold text-emerald-950">{patient.email || 'Non renseigné'}</p></div>
+              <div><p className="text-[10px] font-bold uppercase text-emerald-600">Groupe</p><p className="mt-1 text-sm font-bold text-emerald-950">{bloodGroup || 'Non renseigné'}</p></div>
+              <div><p className="text-[10px] font-bold uppercase text-emerald-600">Statut</p><p className="mt-1 text-sm font-bold text-emerald-950">{memberSince}</p></div>
             </div>
-
+            
             {/* Error or Success states */}
             {error && (
               <div className="p-4 bg-red-50 border border-red-100 text-red-800 rounded-2xl flex items-start gap-3 text-xs font-sans">
@@ -188,17 +192,6 @@ export default function UserProfileModal({ isOpen, onClose, patient, onUpdatePat
                     />
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   </div>
-                </div>
-
-                {/* Email (Read-only as it serves as index key) */}
-                <div className="space-y-1.5">
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Adresse Email (Identifiant National)</label>
-                  <input
-                    type="email"
-                    disabled
-                    value={patient.email}
-                    className="w-full px-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl font-mono text-xs text-gray-500 cursor-not-allowed"
-                  />
                 </div>
 
                 {/* Phone */}
@@ -308,6 +301,39 @@ export default function UserProfileModal({ isOpen, onClose, patient, onUpdatePat
                   />
                   <AlertCircle className="absolute left-3 top-4 w-4 h-4 text-gray-400" />
                 </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 border-b border-emerald-100 pb-2">
+                <Users className="h-4 w-4 text-emerald-600" />
+                <h4 className="text-xs font-black uppercase tracking-wider text-emerald-800">Contacts d’urgence</h4>
+              </div>
+              {patient.emergencyContacts?.length ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {patient.emergencyContacts.map((contact, index) => (
+                    <div key={`${contact.phone}-${index}`} className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-3">
+                      <p className="text-sm font-black text-emerald-950">{contact.name}</p>
+                      <p className="mt-1 flex items-center gap-1.5 text-xs font-bold text-emerald-700"><Phone className="h-3.5 w-3.5" />{contact.phone}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="rounded-2xl border border-dashed border-emerald-200 p-4 text-sm text-emerald-700">Aucun contact d’urgence renseigné.</p>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 border-b border-emerald-100 pb-2">
+                <Settings className="h-4 w-4 text-emerald-600" />
+                <h4 className="text-xs font-black uppercase tracking-wider text-emerald-800">Paramètres</h4>
+              </div>
+              <div className="divide-y divide-emerald-50 rounded-2xl border border-emerald-100 bg-white">
+                <button type="button" onClick={() => setDarkMode(value => !value)} className="flex min-h-[52px] w-full items-center gap-3 px-4 text-left hover:bg-emerald-50/60"><Moon className="h-4 w-4 text-emerald-700" /><span className="flex-1 text-sm font-bold text-emerald-950">Mode sombre</span><span className="text-xs font-bold text-emerald-700">{darkMode ? 'Actif' : 'Inactif'}</span></button>
+                <button type="button" onClick={() => setNotificationsEnabled(value => !value)} className="flex min-h-[52px] w-full items-center gap-3 px-4 text-left hover:bg-emerald-50/60"><Bell className="h-4 w-4 text-emerald-700" /><span className="flex-1 text-sm font-bold text-emerald-950">Notifications</span><span className="text-xs font-bold text-emerald-700">{notificationsEnabled ? 'Activées' : 'Désactivées'}</span></button>
+                <div className="flex min-h-[52px] items-center gap-3 px-4"><Languages className="h-4 w-4 text-emerald-700" /><span className="flex-1 text-sm font-bold text-emerald-950">Langue</span><span className="text-xs font-bold text-emerald-700">Français</span></div>
+                <button type="button" onClick={() => setError('La modification du mot de passe sera disponible dans la prochaine version.')} className="flex min-h-[52px] w-full items-center gap-3 px-4 text-left hover:bg-emerald-50/60"><LockKeyhole className="h-4 w-4 text-emerald-700" /><span className="flex-1 text-sm font-bold text-emerald-950">Sécurité</span><span className="text-xs font-bold text-emerald-700">Modifier</span></button>
+                <div className="flex min-h-[52px] items-center gap-3 px-4"><Fingerprint className="h-4 w-4 text-emerald-700" /><span className="flex-1 text-sm font-bold text-emerald-950">Biométrie</span><span className="text-xs font-bold text-emerald-700">Activée</span></div>
               </div>
             </div>
 

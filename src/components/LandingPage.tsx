@@ -169,9 +169,9 @@ export default function LandingPage({
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55 }}
-          className="relative inline-flex max-w-full items-center gap-2 px-3.5 py-1.5 rounded-full bg-white text-[#008000] border border-[#008000] text-[10px] sm:text-[11px] font-bold tracking-tight mb-5 shadow-sm"
+          className="relative inline-flex max-w-full items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/80 text-slate-700 border border-emerald-200 text-[10px] sm:text-[11px] font-bold tracking-tight mb-5 shadow-sm backdrop-blur-sm"
         >
-          <ShieldCheck className="w-3.5 h-3.5 text-[#008000]" />
+          <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
           <span className="truncate">Portail National d'Interconnexion Médicale • République du Bénin</span>
         </motion.div>
 
@@ -183,7 +183,7 @@ export default function LandingPage({
           className="relative mb-5"
         >
           <div 
-              className="landing-logo-badge w-16 h-16 sm:w-20 sm:h-20 rounded-[1.4rem] bg-[#008000] flex items-center justify-center text-white shadow-none cursor-pointer"
+            className="landing-logo-badge w-16 h-16 sm:w-20 sm:h-20 rounded-[1.4rem] bg-emerald-600 flex items-center justify-center text-white shadow-md hover:bg-emerald-700 transition-colors cursor-pointer"
             onClick={speakIntro}
             title="Cliquez pour écouter l'explication audio"
           >
@@ -192,16 +192,16 @@ export default function LandingPage({
           {/* Audio helper tag */}
           <button
             onClick={speakIntro}
-            className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 bg-white text-[#008000] border border-[#008000] px-2.5 py-0.5 rounded-full text-[10px] font-bold font-sans shadow-none flex items-center gap-1 cursor-pointer whitespace-nowrap"
+            className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 bg-white text-emerald-800 border border-emerald-200 px-2.5 py-0.5 rounded-full text-[10px] font-bold font-sans shadow-xs hover:bg-emerald-50 flex items-center gap-1 cursor-pointer whitespace-nowrap"
           >
             {isPlayingAudio ? (
               <>
-                <VolumeX className="w-3 h-3 text-[#16A085] animate-pulse" />
+                <VolumeX className="w-3 h-3 text-red-500 animate-pulse" />
                 <span>Arrêter l'audio</span>
               </>
             ) : (
               <>
-                <Volume2 className="w-3 h-3 text-[#008000]" />
+                <Volume2 className="w-3 h-3 text-emerald-600" />
                 <span>Écouter (Audio)</span>
               </>
             )}
@@ -213,9 +213,9 @@ export default function LandingPage({
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.65, delay: 0.18 }}
-          className="relative text-[2rem] sm:text-5xl lg:text-6xl font-extrabold font-sans text-[#008000] tracking-[-0.04em] leading-[1.08] max-w-4xl mt-1"
+          className="relative text-[2.2rem] sm:text-5xl lg:text-6xl font-extrabold font-sans text-slate-900 tracking-[-0.04em] leading-[1.02] max-w-4xl mt-1"
         >
-          De l'urgence au soin en <span className="landing-highlight text-[#008000]">3 minutes</span>
+          Accès immédiat aux soins, <span className="landing-highlight text-emerald-600">sans friction</span>
         </motion.h1>
 
         {/* Subtitle */}
@@ -223,10 +223,21 @@ export default function LandingPage({
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.28 }}
-          className="relative mt-4 text-sm sm:text-base lg:text-lg text-[#008000] font-sans max-w-2xl leading-relaxed"
+          className="relative mt-4 text-sm sm:text-base lg:text-lg text-slate-600 font-sans max-w-2xl leading-relaxed"
         >
-          Le réseau national e-santé souverain et décentralisé. Accédez à vos soins, dossier médical chiffré et règlements instantanés.
+          Un écosystème santé sécurisé pour les patients, médecins, hôpitaux et administrateurs, avec dossier numérique, prise en charge rapide et paiements instantanés.
         </motion.p>
+
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, delay: 0.34 }}
+          className="mt-5 flex flex-wrap items-center justify-center gap-2 text-[10px] sm:text-xs font-bold uppercase tracking-[0.12em] text-slate-600"
+        >
+          <span className="rounded-full border border-emerald-200 bg-white/85 px-3 py-1.5 text-emerald-800 shadow-sm">Dossier chiffré</span>
+          <span className="rounded-full border border-sky-200 bg-white/85 px-3 py-1.5 text-sky-700 shadow-sm">Consultation rapide</span>
+          <span className="rounded-full border border-amber-200 bg-white/85 px-3 py-1.5 text-amber-700 shadow-sm">Urgence 24/7</span>
+        </motion.div>
 
         {/* 3 Action Cards (Patient / Médecin / Hôpital) */}
         <div className="relative w-full grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 lg:gap-5 mt-8 sm:mt-10">
@@ -237,20 +248,20 @@ export default function LandingPage({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55, delay: 0.35 }}
             onClick={() => onSelectRole('patient')}
-            className="landing-role-card landing-role-card-patient sante-card p-5 sm:p-5 lg:p-6 flex flex-col items-center text-center group cursor-pointer bg-white relative overflow-hidden"
+            className="landing-role-card landing-role-card-patient sante-card p-5 sm:p-5 lg:p-6 flex flex-col items-center text-center group cursor-pointer bg-white relative overflow-hidden border border-slate-200 hover:border-emerald-500 hover:shadow-md transition-all"
           >
-            <div className="absolute top-0 left-0 right-0 h-1.5 bg-[#008000]"></div>
-            <div className="w-14 h-14 rounded-2xl bg-white border border-[#008000] flex items-center justify-center text-[#008000] mb-3 shadow-none">
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-emerald-600"></div>
+            <div className="w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700 mb-3 group-hover:scale-105 transition-transform">
               <User className="w-7 h-7" />
             </div>
-            <span className="text-xs font-extrabold uppercase tracking-wider text-[#008000] bg-white border border-[#008000] px-2.5 py-0.5 rounded-full mb-1.5">
+            <span className="text-xs font-extrabold uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full mb-1.5">
               Espace Citoyen
             </span>
-            <h3 className="text-xl sm:text-2xl font-bold text-[#008000] font-sans">Patient</h3>
-            <p className="text-xs sm:text-sm text-[#008000] font-sans mt-1">
+            <h3 className="text-xl sm:text-2xl font-bold text-slate-900 font-sans">Patient</h3>
+            <p className="text-xs sm:text-sm text-slate-600 font-sans mt-1">
               Dossier médical, QR Pass & Soins
             </p>
-            <div className="mt-4 text-sm font-bold text-[#008000] flex items-center gap-1">
+            <div className="mt-4 text-sm font-bold text-emerald-700 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
               <span>Accéder à mon espace</span>
               <ArrowRight className="w-4 h-4" />
             </div>
@@ -262,20 +273,20 @@ export default function LandingPage({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55, delay: 0.44 }}
             onClick={() => onSelectRole('doctor')}
-            className="landing-role-card landing-role-card-doctor sante-card p-5 sm:p-5 lg:p-6 flex flex-col items-center text-center group cursor-pointer bg-white relative overflow-hidden"
+            className="landing-role-card landing-role-card-doctor sante-card p-5 sm:p-5 lg:p-6 flex flex-col items-center text-center group cursor-pointer bg-white relative overflow-hidden border border-slate-200 hover:border-blue-500 hover:shadow-md transition-all"
           >
-            <div className="absolute top-0 left-0 right-0 h-1.5 bg-[#008000]"></div>
-            <div className="w-14 h-14 rounded-2xl bg-white border border-[#008000] flex items-center justify-center text-[#008000] mb-3 shadow-none">
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-blue-600"></div>
+            <div className="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-700 mb-3 group-hover:scale-105 transition-transform">
               <Stethoscope className="w-7 h-7" />
             </div>
-            <span className="text-xs font-extrabold uppercase tracking-wider text-[#008000] bg-white border border-[#008000] px-2.5 py-0.5 rounded-full mb-1.5">
+            <span className="text-xs font-extrabold uppercase tracking-wider text-blue-800 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full mb-1.5">
               Espace Praticien
             </span>
-            <h3 className="text-xl sm:text-2xl font-bold text-[#008000] font-sans">Médecin</h3>
-            <p className="text-xs sm:text-sm text-[#008000] font-sans mt-1">
+            <h3 className="text-xl sm:text-2xl font-bold text-slate-900 font-sans">Médecin</h3>
+            <p className="text-xs sm:text-sm text-slate-600 font-sans mt-1">
               Consultations, ordonnances & IA
             </p>
-            <div className="mt-4 text-sm font-bold text-[#008000] flex items-center gap-1">
+            <div className="mt-4 text-sm font-bold text-blue-700 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
               <span>Consulter un dossier</span>
               <ArrowRight className="w-4 h-4" />
             </div>
@@ -287,20 +298,20 @@ export default function LandingPage({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55, delay: 0.53 }}
             onClick={() => onSelectRole('hospital')}
-            className="landing-role-card landing-role-card-hospital sante-card p-5 sm:p-5 lg:p-6 flex flex-col items-center text-center group cursor-pointer bg-white relative overflow-hidden"
+            className="landing-role-card landing-role-card-hospital sante-card p-5 sm:p-5 lg:p-6 flex flex-col items-center text-center group cursor-pointer bg-white relative overflow-hidden border border-slate-200 hover:border-amber-500 hover:shadow-md transition-all"
           >
-            <div className="absolute top-0 left-0 right-0 h-1.5 bg-[#008000]"></div>
-            <div className="w-14 h-14 rounded-2xl bg-white border border-[#008000] flex items-center justify-center text-[#008000] mb-3 shadow-none">
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-amber-500"></div>
+            <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700 mb-3 group-hover:scale-105 transition-transform">
               <Building2 className="w-7 h-7" />
             </div>
-            <span className="text-xs font-extrabold uppercase tracking-wider text-[#008000] bg-white border border-[#008000] px-2.5 py-0.5 rounded-full mb-1.5">
+            <span className="text-xs font-extrabold uppercase tracking-wider text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full mb-1.5">
               Direction Hospitalière
             </span>
-            <h3 className="text-xl sm:text-2xl font-bold text-[#008000] font-sans">Hôpital</h3>
-            <p className="text-xs sm:text-sm text-[#008000] font-sans mt-1">
+            <h3 className="text-xl sm:text-2xl font-bold text-slate-900 font-sans">Hôpital</h3>
+            <p className="text-xs sm:text-sm text-slate-600 font-sans mt-1">
               Lits, personnel & régulation MSP
             </p>
-            <div className="mt-4 text-sm font-bold text-[#008000] flex items-center gap-1">
+            <div className="mt-4 text-sm font-bold text-amber-700 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
               <span>Gérer l'établissement</span>
               <ArrowRight className="w-4 h-4" />
             </div>
@@ -312,48 +323,48 @@ export default function LandingPage({
         <div className="relative w-full grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
 
           {/* Metric 1: Couverture */}
-          <motion.div className="sante-card p-4 text-left bg-white relative overflow-hidden flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white text-[#008000] flex items-center justify-center shrink-0 border border-[#008000]">
+          <motion.div className="sante-card p-4 text-left bg-white border border-slate-200/80 rounded-2xl relative overflow-hidden flex items-center gap-3 shadow-xs">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-200">
               <Shield className="w-5 h-5" />
             </div>
             <div>
-              <div className="text-xl font-black text-[#008000] font-sans tracking-tight">
+              <div className="text-xl font-black text-slate-900 font-sans tracking-tight">
                 98%
               </div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#008000] block">COUVERTURE</span>
-              <p className="text-[11px] text-[#008000] font-sans leading-tight mt-0.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 block">COUVERTURE</span>
+              <p className="text-[11px] text-slate-500 font-sans leading-tight mt-0.5">
                 Des données patients sécurisées
               </p>
             </div>
           </motion.div>
 
           {/* Metric 2: Efficacité */}
-          <motion.div className="sante-card p-4 text-left bg-white relative overflow-hidden flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white text-[#008000] flex items-center justify-center shrink-0 border border-[#008000]">
+          <motion.div className="sante-card p-4 text-left bg-white border border-slate-200/80 rounded-2xl relative overflow-hidden flex items-center gap-3 shadow-xs">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center shrink-0 border border-blue-200">
               <TrendingUp className="w-5 h-5" />
             </div>
             <div>
-              <div className="text-xl font-black text-[#008000] font-sans tracking-tight">
+              <div className="text-xl font-black text-slate-900 font-sans tracking-tight">
                 40%
               </div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#008000] block">EFFICACITÉ</span>
-              <p className="text-[11px] text-[#008000] font-sans leading-tight mt-0.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-blue-800 block">EFFICACITÉ</span>
+              <p className="text-[11px] text-slate-500 font-sans leading-tight mt-0.5">
                 D'économie sur la gestion des soins
               </p>
             </div>
           </motion.div>
 
           {/* Metric 3: Vitesse */}
-          <motion.div className="sante-card p-4 text-left bg-white relative overflow-hidden flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white text-[#008000] flex items-center justify-center shrink-0 border border-[#008000]">
-              <Zap className="w-5 h-5 fill-[#008000] text-[#008000]" />
+          <motion.div className="sante-card p-4 text-left bg-white border border-slate-200/80 rounded-2xl relative overflow-hidden flex items-center gap-3 shadow-xs">
+            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center shrink-0 border border-amber-200">
+              <Zap className="w-5 h-5 fill-amber-500 text-amber-500" />
             </div>
             <div>
-              <div className="text-xl font-black text-[#008000] font-sans tracking-tight">
+              <div className="text-xl font-black text-slate-900 font-sans tracking-tight">
                 &lt; 2s
               </div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#008000] block">VITESSE RÈGLEMENT</span>
-              <p className="text-[11px] text-[#008000] font-sans leading-tight mt-0.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 block">VITESSE RÈGLEMENT</span>
+              <p className="text-[11px] text-slate-500 font-sans leading-tight mt-0.5">
                 Règlement direct par Bitcoin Lightning
               </p>
             </div>
@@ -365,18 +376,18 @@ export default function LandingPage({
 
       {/* FAQ & Voice Assistance Section */}
       <section className="w-full max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 pb-16">
-        <div className="landing-faq bg-white rounded-3xl border border-[#008000] p-5 sm:p-6 md:p-8 space-y-6 shadow-none">
+        <div className="landing-faq bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 md:p-8 space-y-6 shadow-xs">
           <div className="flex items-center justify-between">
             <div className="space-y-1 text-left">
-              <h3 className="text-lg font-black text-[#008000] font-sans flex items-center gap-2">
-                <HelpCircle className="w-5 h-5 text-[#008000]" />
+              <h3 className="text-lg font-black text-slate-900 font-sans flex items-center gap-2">
+                <HelpCircle className="w-5 h-5 text-emerald-600" />
                 Foire Aux Questions & Guide Simplifié
               </h3>
-              <p className="text-xs text-[#008000]">Comprendre le fonctionnement en toute simplicité</p>
+              <p className="text-xs text-slate-500">Comprendre le fonctionnement en toute simplicité</p>
             </div>
             <button
               onClick={speakIntro}
-              className="p-2.5 bg-white text-[#008000] border border-[#008000] rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+              className="p-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
             >
               <Volume2 className="w-4 h-4" />
               <span className="hidden sm:inline">Guide Audio</span>
@@ -387,17 +398,17 @@ export default function LandingPage({
             {faqs.map((faq, idx) => (
               <div 
                 key={idx}
-                className="border border-[#008000] rounded-2xl overflow-hidden bg-white"
+                className="border border-slate-200 rounded-2xl overflow-hidden bg-white"
               >
                 <button
                   onClick={() => setActiveFaq(activeFaq === idx ? null : idx)}
-                  className="w-full py-3.5 px-5 flex items-center justify-between text-left font-sans font-bold text-[#008000] text-xs sm:text-sm gap-3 cursor-pointer"
+                  className="w-full py-3.5 px-5 flex items-center justify-between text-left font-sans font-bold text-slate-800 text-xs sm:text-sm gap-3 cursor-pointer hover:bg-slate-50 transition-colors"
                 >
                   <span>{faq.question}</span>
                   {activeFaq === idx ? (
-                    <ChevronUp className="w-4 h-4 text-[#008000] shrink-0" />
+                    <ChevronUp className="w-4 h-4 text-emerald-600 shrink-0" />
                   ) : (
-                    <ChevronDown className="w-4 h-4 text-[#008000] shrink-0" />
+                    <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
                   )}
                 </button>
                 
@@ -409,7 +420,7 @@ export default function LandingPage({
                       exit={{ height: 0, opacity: 0 }}
                       transition={{ duration: 0.2 }}
                     >
-                      <div className="px-5 pb-4 pt-1 text-xs text-[#008000] leading-relaxed border-t border-[#008000]">
+                      <div className="px-5 pb-4 pt-1 text-xs text-slate-600 leading-relaxed border-t border-slate-100">
                         {faq.answer}
                       </div>
                     </motion.div>
@@ -429,36 +440,36 @@ export default function LandingPage({
               initial={{ opacity: 0, y: 20, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 20, scale: 0.95 }}
-              className="w-[320px] sm:w-[360px] h-[450px] bg-white rounded-3xl shadow-none border border-[#008000] flex flex-col overflow-hidden mb-3 absolute bottom-12 right-0"
+              className="w-[320px] sm:w-[360px] h-[450px] bg-white rounded-3xl shadow-xl border border-slate-200 flex flex-col overflow-hidden mb-3 absolute bottom-12 right-0 z-50"
             >
-              <div className="p-3.5 bg-[#008000] text-white flex items-center justify-between">
+              <div className="p-3.5 bg-emerald-700 text-white flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-white flex items-center justify-center text-[#008000] font-bold text-xs">
+                  <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center text-white font-black text-xs">
                     S+
                   </div>
                   <div>
-                    <h4 className="text-xs font-bold">Assistant Vocal Santé+</h4>
-                    <span className="text-[10px] text-white flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-white"></span>
+                    <h4 className="text-xs font-bold text-white">Assistant Vocal Santé+</h4>
+                    <span className="text-[10px] text-emerald-100 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                       En ligne • Réponses audio
                     </span>
                   </div>
                 </div>
                 <button 
                   onClick={() => setChatOpen(false)}
-                  className="text-white/70 hover:text-white p-1 cursor-pointer"
+                  className="text-white/80 hover:text-white p-1 cursor-pointer transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-3.5 space-y-2.5 bg-white text-xs">
+              <div className="flex-1 overflow-y-auto p-3.5 space-y-2.5 bg-slate-50 text-xs">
                 {chatMessages.map((msg, idx) => (
                   <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[85%] rounded-2xl px-3.5 py-2 leading-relaxed ${
                       msg.role === 'user' 
-                        ? 'bg-[#008000] text-white'
-                        : 'bg-white text-[#008000] border border-[#008000] shadow-none'
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'bg-white text-slate-800 border border-slate-200/80 shadow-xs'
                     }`}>
                       {msg.text}
                     </div>
@@ -466,10 +477,10 @@ export default function LandingPage({
                 ))}
                 {isTyping && (
                   <div className="flex justify-start">
-                    <div className="bg-white text-[#008000] border border-[#008000] rounded-2xl px-3.5 py-2 text-xs flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 bg-[#008000] rounded-full"></span>
-                      <span className="w-1.5 h-1.5 bg-[#008000] rounded-full"></span>
-                      <span className="w-1.5 h-1.5 bg-[#008000] rounded-full"></span>
+                    <div className="bg-white text-slate-500 border border-slate-200 rounded-2xl px-3.5 py-2 text-xs flex items-center gap-1 shadow-xs">
+                      <span className="w-1.5 h-1.5 bg-emerald-600 rounded-full animate-bounce"></span>
+                      <span className="w-1.5 h-1.5 bg-emerald-600 rounded-full animate-bounce delay-100"></span>
+                      <span className="w-1.5 h-1.5 bg-emerald-600 rounded-full animate-bounce delay-200"></span>
                     </div>
                   </div>
                 )}
@@ -481,18 +492,18 @@ export default function LandingPage({
                   e.preventDefault();
                   handleSendChat(chatInput);
                 }}
-                className="p-2.5 bg-white border-t border-[#008000] flex items-center gap-2"
+                className="p-2.5 bg-white border-t border-slate-200 flex items-center gap-2"
               >
                 <input
                   type="text"
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
                   placeholder="Posez votre question..."
-                  className="flex-1 bg-white border border-[#008000] rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-[#008000]"
+                  className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors"
                 />
                 <button
                   type="submit"
-                  className="w-7 h-7 rounded-lg bg-[#008000] text-white flex items-center justify-center cursor-pointer shrink-0"
+                  className="w-7 h-7 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center cursor-pointer shrink-0 transition-colors shadow-xs"
                 >
                   <Send className="w-3.5 h-3.5" />
                 </button>
@@ -503,7 +514,7 @@ export default function LandingPage({
 
         <button
           onClick={() => setChatOpen(!chatOpen)}
-          className="h-9 px-3.5 bg-[#008000] text-white rounded-full shadow-none cursor-pointer flex items-center gap-2 text-xs font-bold border border-[#008000]"
+          className="h-9 px-3.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-full shadow-md cursor-pointer flex items-center gap-2 text-xs font-bold transition-colors"
           title="Assistant Santé+"
         >
           <MessageSquare className="w-3.5 h-3.5 text-white" />

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Hospital, Appointment, Patient } from '../types';
-import { Calendar as CalendarIcon, Clock, User, CheckCircle, ArrowLeft, ShieldAlert, Wallet } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, User, CheckCircle, ArrowLeft, ShieldAlert, Wallet, MapPin, XCircle, Repeat2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface AppointmentModalProps {
@@ -9,9 +9,10 @@ interface AppointmentModalProps {
   onConfirm: (appointment: Appointment) => void;
   patientUser?: Patient | null;
   hasCreditAvailable?: boolean;
+  appointments?: Appointment[];
 }
 
-export default function AppointmentModal({ hospital, onBack, onConfirm, patientUser, hasCreditAvailable }: AppointmentModalProps) {
+export default function AppointmentModal({ hospital, onBack, onConfirm, patientUser, hasCreditAvailable, appointments = [] }: AppointmentModalProps) {
   const [patientName, setPatientName] = useState(patientUser?.name || '');
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedSlot, setSelectedSlot] = useState('');
@@ -20,19 +21,26 @@ export default function AppointmentModal({ hospital, onBack, onConfirm, patientU
   const [doctorName, setDoctorName] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'Wallet' | 'Lightning' | 'Credit'>(hasCreditAvailable ? 'Credit' : 'Wallet');
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [appointmentTab, setAppointmentTab] = useState<'upcoming' | 'past' | 'cancelled'>('upcoming');
+  const [submitError, setSubmitError] = useState('');
+  const confirmTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (confirmTimeoutRef.current) clearTimeout(confirmTimeoutRef.current);
+  }, []);
 
   // Generate calendar days for scheduling (next 6 days starting tomorrow, skipping Sunday)
   const getNextDays = () => {
     const days = [];
     const weekdays = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
     const months = ['Janv', 'Févr', 'Mars', 'Avril', 'Mai', 'Juin', 'Juil', 'Août', 'Sept', 'Oct', 'Nov', 'Déc'];
-    
+
     let count = 0;
     let index = 1;
     while (count < 6) {
       const futureDate = new Date();
       futureDate.setDate(futureDate.getDate() + index);
-      
+
       // Skip Sundays (standard health center rest day in Benin except emergencies)
       if (futureDate.getDay() !== 0) {
         days.push({
@@ -50,6 +58,12 @@ export default function AppointmentModal({ hospital, onBack, onConfirm, patientU
 
   const daysList = getNextDays();
 
+  const visibleAppointments = appointments.filter(appointment => {
+    if (appointmentTab === 'cancelled') return appointment.status === 'cancelled';
+    if (appointmentTab === 'past') return appointment.status !== 'cancelled' && new Date(`${appointment.date}T${appointment.timeSlot || '00:00'}`) < new Date();
+    return appointment.status !== 'cancelled' && new Date(`${appointment.date}T${appointment.timeSlot || '23:59'}`) >= new Date();
+  });
+
   // Standard morning & afternoon medical consulting slots in Benin
   const slotsList = [
     '08:30', '09:00', '09:30', '10:00', '10:30', '11:00',
@@ -59,6 +73,42 @@ export default function AppointmentModal({ hospital, onBack, onConfirm, patientU
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!patientName.trim() || !selectedDate || !selectedSlot || !selectedService || !reason.trim()) return;
+
+    setSubmitError('');
+
+    // Verify the selected payment method is actually funded before confirming.
+    const amountPaidXOF = paymentMethod === 'Wallet' ? 2000 : 0;
+    const amountPaidSats = paymentMethod === 'Lightning' ? 3330 : 0;
+
+    if (paymentMethod === 'Wallet') {
+      if (!patientUser) {
+        setSubmitError('Connectez-vous pour payer avec votre portefeuille Santé+.');
+        return;
+      }
+      if ((patientUser.walletBalance ?? 0) < amountPaidXOF) {
+        setSubmitError(`Solde de portefeuille insuffisant (Requis : ${amountPaidXOF.toLocaleString('fr-FR')} XOF). Veuillez recharger d'abord.`);
+        return;
+      }
+    }
+
+    if (paymentMethod === 'Lightning') {
+      if (!patientUser) {
+        setSubmitError('Connectez-vous pour payer via Bitcoin Lightning.');
+        return;
+      }
+      if ((patientUser.satoshiBalance ?? 0) < amountPaidSats) {
+        setSubmitError(`Solde Satoshi insuffisant (Requis : ${amountPaidSats.toLocaleString('fr-FR')} Sats). Veuillez faire un dépôt ou payer en XOF.`);
+        return;
+      }
+    }
+
+    // Debit the patient's real balance for the chosen method.
+    if (patientUser && paymentMethod === 'Wallet') {
+      patientUser.walletBalance = (patientUser.walletBalance ?? 0) - amountPaidXOF;
+    }
+    if (patientUser && paymentMethod === 'Lightning') {
+      patientUser.satoshiBalance = (patientUser.satoshiBalance ?? 0) - amountPaidSats;
+    }
 
     const newAppointment: Appointment = {
       id: `apt-${Date.now()}`,
@@ -74,12 +124,14 @@ export default function AppointmentModal({ hospital, onBack, onConfirm, patientU
       doctorName: doctorName.trim() || undefined,
       isPaid: true,
       paymentMethod: paymentMethod,
-      amountPaidXOF: paymentMethod === 'Wallet' ? 2000 : 0,
-      amountPaidSats: paymentMethod === 'Lightning' ? 3330 : 0,
+      amountPaidXOF,
+      amountPaidSats,
     };
 
     setIsSubmitted(true);
-    setTimeout(() => {
+    if (confirmTimeoutRef.current) clearTimeout(confirmTimeoutRef.current);
+    confirmTimeoutRef.current = setTimeout(() => {
+      confirmTimeoutRef.current = null;
       onConfirm(newAppointment);
     }, 2500);
   };
@@ -95,10 +147,49 @@ export default function AppointmentModal({ hospital, onBack, onConfirm, patientU
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div>
-          <h2 className="text-xl font-bold font-sans text-gray-900">Prendre Rendez-vous</h2>
-          <p className="text-xs text-gray-500 font-sans">{hospital.name}</p>
+          <h2 className="text-2xl font-black text-emerald-950">Mes Rendez-vous</h2>
+          <p className="text-sm text-emerald-700">Planning de soins · {hospital.name}</p>
         </div>
       </div>
+
+      <div className="mb-6 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-1.5">
+        <div className="grid grid-cols-3 gap-1" role="tablist" aria-label="Filtrer les rendez-vous">
+          {([['upcoming', 'À venir'], ['past', 'Passés'], ['cancelled', 'Annulés']] as const).map(([tab, label]) => (
+            <button key={tab} type="button" role="tab" aria-selected={appointmentTab === tab} onClick={() => setAppointmentTab(tab)} className={`min-h-[44px] rounded-xl px-3 py-2 text-sm font-black transition ${appointmentTab === tab ? 'bg-emerald-600 text-white shadow-sm' : 'text-emerald-800 hover:bg-white'}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {visibleAppointments.length > 0 && (
+        <section className="mb-7 space-y-3" aria-label="Rendez-vous enregistrés">
+          {visibleAppointments.map(appointment => (
+            <article key={appointment.id} className="rounded-[32px_32px_8px_32px] border border-emerald-100 bg-emerald-50/50 p-4 shadow-sm">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">{new Date(`${appointment.date}T00:00:00`).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })} · {appointment.timeSlot}</p>
+                  <h3 className="mt-1 text-xl font-black text-emerald-950">{appointment.doctorName || 'Praticien à confirmer'}</h3>
+                  <p className="mt-1 flex items-center gap-1.5 text-sm font-bold text-emerald-800"><MapPin className="h-4 w-4" />{appointment.hospitalName}</p>
+                  <p className="mt-1 text-xs text-emerald-700">{appointment.service || 'Consultation médicale'} · {appointment.reason || 'Motif non précisé'}</p>
+                </div>
+                <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-emerald-200 bg-white px-3 py-1.5 text-xs font-black text-emerald-800"><CheckCircle className="h-3.5 w-3.5" />{appointment.status === 'confirmed' ? 'Confirmé' : appointment.status === 'pending' ? 'En attente' : 'Annulé'}</span>
+              </div>
+              {appointmentTab === 'upcoming' && (
+                <div className="mt-4 flex flex-wrap gap-2 border-t border-emerald-100 pt-3">
+                  <button type="button" className="flex min-h-[44px] items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-xs font-black text-emerald-800 hover:bg-emerald-100"><MapPin className="h-3.5 w-3.5" />Itinéraire</button>
+                  <button type="button" className="flex min-h-[44px] items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-xs font-black text-emerald-800 hover:bg-emerald-100"><Repeat2 className="h-3.5 w-3.5" />Reporter</button>
+                  <button type="button" className="flex min-h-[44px] items-center gap-1.5 rounded-xl bg-emerald-100 px-3 py-2 text-xs font-black text-emerald-800 hover:bg-emerald-200"><XCircle className="h-3.5 w-3.5" />Annuler</button>
+                </div>
+              )}
+            </article>
+          ))}
+        </section>
+      )}
+
+      {appointmentTab === 'upcoming' && (
+        <div className="mb-5 flex items-center gap-2 text-sm font-black text-emerald-800"><CalendarIcon className="h-4 w-4" />Prendre un nouveau rendez-vous</div>
+      )}
 
       <AnimatePresence mode="wait">
         {!isSubmitted ? (
@@ -319,6 +410,13 @@ export default function AppointmentModal({ hospital, onBack, onConfirm, patientU
                 <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-[11px] text-red-600 font-sans flex items-center gap-1.5 mt-2">
                   <ShieldAlert className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
                   <span>Solde Satoshi insuffisant (Requis : 3 330 Sats). Veuillez faire un dépôt ou payer en XOF.</span>
+                </div>
+              )}
+
+              {submitError && (
+                <div role="alert" className="p-3 bg-red-50 border-red-100 rounded-xl text-[11px] text-red-600 font-sans flex items-center gap-1.5 mt-2">
+                  <ShieldAlert className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
+                  <span>{submitError}</span>
                 </div>
               )}
             </div>

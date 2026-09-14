@@ -56,7 +56,7 @@ const emptyDossier = (patient: Patient): PatientDossier => ({
   documents: [],
 });
 
-export default function ClinicalWorkspace({ doctorData }: { doctorData: DoctorData }) {
+export default function ClinicalWorkspace({ doctorData }: { doctorData?: DoctorData | null; key?: React.Key }) {
   const [phase, setPhase] = useState<Phase>('identify');
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
@@ -255,38 +255,216 @@ export default function ClinicalWorkspace({ doctorData }: { doctorData: DoctorDa
   return (
     <div className="page-enter min-h-[calc(100vh-80px)] bg-slate-50 px-3 py-4 sm:px-5">
       {phase === 'home' && (
-        <main className="mx-auto flex min-h-[70vh] max-w-4xl flex-col items-center justify-center text-center">
-          <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700"><Stethoscope className="h-8 w-8" /></div>
-          <p className="text-sm font-bold uppercase tracking-[0.18em] text-emerald-700">Poste clinique</p>
-          <h1 className="mt-2 text-3xl font-black text-slate-900 sm:text-5xl">Commencer une prise en charge</h1>
-          <p className="mt-3 max-w-xl text-slate-500">Identifiez le prochain patient et poursuivez tout le soin dans une seule vue.</p>
-          <button onClick={() => { setPhase('identify'); setError(''); }} className="mt-8 flex items-center gap-3 rounded-2xl bg-emerald-600 px-7 py-4 text-lg font-black text-white shadow-lg shadow-emerald-200 transition hover:bg-emerald-700"><UserPlus className="h-6 w-6" />+ Ajouter un patient</button>
-          <div className="mt-12 grid w-full max-w-lg grid-cols-2 gap-3 text-left">
-            <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-2xl font-black text-slate-900">{stats?.patientsToday ?? 0}</p><p className="text-xs text-slate-500">Patients vus aujourd’hui</p></div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-2xl font-black text-slate-900">{stats?.appointmentsScheduled ?? 0}</p><p className="text-xs text-slate-500">Patients en attente</p></div>
+        <main className="mx-auto max-w-6xl space-y-6">
+          {/* En-tête du Dashboard Médecin */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+            <div>
+              <div className="flex items-center gap-2 text-emerald-700 font-bold text-xs uppercase tracking-wider">
+                <Stethoscope className="h-4 w-4" />
+                <span>Poste clinique actif</span>
+              </div>
+              <h1 className="mt-1 text-2xl sm:text-3xl font-black text-slate-900">
+                {doctorData.name}
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-500">
+                {doctorData.specialty} · {doctorData.hospitalName}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => setScannerOpen(true)}
+                className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-emerald-700 transition"
+                title="Scanner le QR code du patient"
+              >
+                <QrCode className="h-4 w-4" />
+                <span>Scanner QR</span>
+              </button>
+              <button
+                onClick={createAnonymousPatient}
+                className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700 hover:bg-red-100 transition"
+                title="Prise en charge d'urgence sans dossier préalable"
+              >
+                <AlertTriangle className="h-4 w-4" />
+                <span>Fiche Urgence</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Statistiques et KPIs */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex items-center justify-between text-slate-500 mb-2">
+                <span className="text-xs font-semibold">Patients aujourd’hui</span>
+                <Users className="h-4 w-4 text-emerald-600" />
+              </div>
+              <p className="text-2xl font-black text-slate-900">{stats?.patientsToday ?? 0}</p>
+              <p className="text-[11px] text-emerald-600 mt-1 font-semibold">Consultations réalisées</p>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex items-center justify-between text-slate-500 mb-2">
+                <span className="text-xs font-semibold">En attente</span>
+                <HeartPulse className="h-4 w-4 text-amber-500" />
+              </div>
+              <p className="text-2xl font-black text-slate-900">{stats?.appointmentsScheduled ?? 0}</p>
+              <p className="text-[11px] text-amber-600 mt-1 font-semibold">File de consultation</p>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex items-center justify-between text-slate-500 mb-2">
+                <span className="text-xs font-semibold">Dossiers suivis</span>
+                <ClipboardList className="h-4 w-4 text-blue-500" />
+              </div>
+              <p className="text-2xl font-black text-slate-900">{patients.length}</p>
+              <p className="text-[11px] text-blue-600 mt-1 font-semibold">Patientèle active</p>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex items-center justify-between text-slate-500 mb-2">
+                <span className="text-xs font-semibold">Ordonnances actives</span>
+                <Pill className="h-4 w-4 text-purple-500" />
+              </div>
+              <p className="text-2xl font-black text-slate-900">{stats?.prescriptionsActive ?? 0}</p>
+              <p className="text-[11px] text-purple-600 mt-1 font-semibold">Prescriptions en cours</p>
+            </div>
+          </div>
+
+          {/* Section Liste des Patients & Recherche */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+              <div>
+                <h2 className="text-lg font-black text-slate-900">File des patients</h2>
+                <p className="text-xs text-slate-500">Sélectionnez un patient pour consulter son dossier ou démarrer une consultation</p>
+              </div>
+              <div className="relative min-w-[260px] sm:min-w-[320px]">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <input
+                  value={search}
+                  onChange={event => setSearch(event.target.value)}
+                  placeholder="Rechercher par nom ou NPI..."
+                  className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 text-sm outline-none focus:border-emerald-500"
+                />
+              </div>
+            </div>
+
+            {error && (
+              <p className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>
+            )}
+
+            {filteredPatients.length === 0 ? (
+              <div className="text-center py-10 border border-dashed border-slate-200 rounded-2xl">
+                <Users className="h-10 w-10 mx-auto text-slate-300 mb-2" />
+                <p className="text-slate-500 text-sm font-semibold">Aucun patient trouvé dans la file active.</p>
+                {search.trim() && (
+                  <button
+                    onClick={() => identifyPatient(search)}
+                    className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition"
+                  >
+                    Rechercher "{search}" dans le registre national
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="grid gap-3 md:grid-cols-2">
+                {filteredPatients.map(patient => (
+                  <div
+                    key={patient.id}
+                    className="rounded-xl border border-slate-200 p-4 hover:border-emerald-400 hover:shadow-xs transition bg-slate-50/50 flex flex-col justify-between gap-3"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-bold text-slate-900 text-base">{patient.name}</p>
+                        <p className="text-xs font-mono text-emerald-700">{patient.npi || `ID: ${patient.id}`}</p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          {patient.age ? `${patient.age} ans` : 'Âge non renseigné'} · Groupe {patient.blood || 'Non renseigné'}
+                        </p>
+                      </div>
+                      <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800">
+                        {patient.status === 'urgent' ? 'Urgent' : patient.status === 'new' ? 'Nouveau' : 'Suivi'}
+                      </span>
+                    </div>
+
+                    <div className="flex gap-2 pt-2 border-t border-slate-200/60">
+                      <button
+                        onClick={() => openPatient(patient)}
+                        className="flex-1 rounded-lg border border-slate-300 bg-white py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
+                      >
+                        Consulter dossier
+                      </button>
+                      <button
+                        onClick={async () => {
+                          await openPatient(patient);
+                          startConsultation();
+                        }}
+                        className="flex-1 rounded-lg bg-emerald-600 py-2 text-xs font-bold text-white hover:bg-emerald-700 transition flex items-center justify-center gap-1.5"
+                      >
+                        <Stethoscope className="h-3.5 w-3.5" />
+                        <span>Consulter</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </main>
       )}
 
       {phase === 'identify' && (
         <main className="mx-auto max-w-3xl">
-          <button onClick={() => setPhase('home')} className="mb-5 flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-emerald-700"><ArrowLeft className="h-4 w-4" />Accueil</button>
           <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-            <p className="text-sm font-bold text-emerald-700">Étape 1 sur 3</p><h1 className="mt-1 text-3xl font-black text-slate-900">Identifier le patient</h1>
-            <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <button onClick={() => setScannerOpen(true)} className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 font-bold text-white"><QrCode className="h-5 w-5" />Scanner le QR code</button>
-              <button onClick={createAnonymousPatient} className="flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 font-bold text-red-700"><AlertTriangle className="h-5 w-5" />Urgence sans dossier</button>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-sm font-bold text-emerald-700">Étape 1 sur 3</p>
+                <h1 className="mt-1 text-3xl font-black text-slate-900">Identifier le patient</h1>
+                <p className="mt-2 text-sm text-slate-500">Recherchez le dossier par NPI, téléphone, nom ou email avant de commencer la prise en charge.</p>
+              </div>
+              <Stethoscope className="hidden h-8 w-8 text-emerald-600 sm:block" />
             </div>
-            <div className="mt-4 flex gap-2"><input value={identifier} onChange={event => setIdentifier(event.target.value)} onKeyDown={event => event.key === 'Enter' && identifyPatient(identifier)} placeholder="NPI, téléphone, nom ou email" className="min-w-0 flex-1 rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-emerald-500" /><button onClick={() => identifyPatient(identifier)} className="rounded-xl bg-slate-900 px-4 font-bold text-white"><Search className="h-5 w-5" /></button></div>
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <button onClick={() => setScannerOpen(true)} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 font-bold text-white hover:bg-emerald-700">
+                <QrCode className="h-5 w-5" /> Scanner le QR code
+              </button>
+              <button onClick={createAnonymousPatient} className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 font-bold text-red-700 hover:bg-red-100">
+                <AlertTriangle className="h-5 w-5" /> Urgence sans dossier
+              </button>
+            </div>
+
+            <div className="mt-4 flex gap-2">
+              <input value={identifier} onChange={event => setIdentifier(event.target.value)} onKeyDown={event => event.key === 'Enter' && identifyPatient(identifier)} placeholder="NPI, téléphone, nom ou email" className="min-w-0 flex-1 rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-emerald-500" />
+              <button onClick={() => identifyPatient(identifier)} className="rounded-xl bg-slate-900 px-4 font-bold text-white hover:bg-slate-700" aria-label="Rechercher le patient">
+                <Search className="h-5 w-5" />
+              </button>
+            </div>
             {error && <p className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-            <div className="mt-8 border-t border-slate-100 pt-5"><p className="mb-3 text-sm font-bold text-slate-700">Patients déjà autorisés</p><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Rechercher dans la file" className="mb-3 w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-emerald-500" /><div className="grid gap-2 sm:grid-cols-2">{filteredPatients.map(patient => <button key={patient.id} onClick={() => openPatient(patient)} className="rounded-xl border border-slate-200 p-3 text-left hover:border-emerald-400"><span className="block font-bold text-slate-900">{patient.name}</span><span className="text-xs text-slate-500">{patient.npi || patient.id}</span></button>)}</div></div>
+
+            <div className="mt-8 border-t border-slate-100 pt-5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-bold text-slate-700">Historique récent</p>
+                  <p className="mt-1 text-xs text-slate-500">Patients déjà autorisés et suivis par votre espace.</p>
+                </div>
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500">{patients.length} dossier(s)</span>
+              </div>
+              <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Rechercher dans l'historique" className="mt-4 w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-emerald-500" />
+              {filteredPatients.length > 0 ? (
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {filteredPatients.map(patient => (
+                    <button key={patient.id} onClick={() => openPatient(patient)} className="rounded-xl border border-slate-200 p-3 text-left hover:border-emerald-400 hover:bg-emerald-50/40">
+                      <span className="block font-bold text-slate-900">{patient.name}</span>
+                      <span className="text-xs text-slate-500">{patient.npi || patient.id} · {patient.consultations || 0} consultation(s)</span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-3 rounded-xl border border-dashed border-slate-300 p-5 text-center text-sm text-slate-500">Aucun historique disponible pour le moment.</p>
+              )}
+            </div>
           </div>
         </main>
       )}
 
       {phase === 'dossier' && selectedPatient && dossier && (
         <main className="mx-auto max-w-6xl">
-          <button onClick={() => setPhase('identify')} className="mb-5 flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-emerald-700"><ArrowLeft className="h-4 w-4" />Changer de patient</button>
+          <button onClick={() => { setPhase('identify'); setSelectedPatient(null); setDossier(null); }} className="mb-5 flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-emerald-700"><ArrowLeft className="h-4 w-4" />Changer de patient</button>
           <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
             <div className="flex flex-col justify-between gap-4 sm:flex-row"><div><p className="text-sm font-bold text-emerald-700">Étape 2 sur 3 · Dossier chargé</p><h1 className="mt-1 text-3xl font-black text-slate-900">{selectedPatient.name}</h1><p className="mt-1 text-sm text-slate-500">{selectedPatient.age || 'Âge non renseigné'} ans · {selectedPatient.blood} · {dossier.allergies}</p></div><div className="flex flex-wrap gap-2"><button onClick={exportDossierPdf} className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 font-black text-slate-700 hover:border-emerald-400"><FileText className="h-5 w-5" />Exporter le dossier</button><button onClick={startConsultation} className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 font-black text-white hover:bg-emerald-700"><Stethoscope className="h-5 w-5" />Démarrer une consultation</button></div></div>
             <div className="mt-7 grid gap-4 md:grid-cols-3"><div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs text-slate-500">Consultations</p><p className="mt-1 text-2xl font-black">{dossier.consultations.length}</p></div><div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs text-slate-500">Ordonnances</p><p className="mt-1 text-2xl font-black">{dossier.prescriptions.length}</p></div><div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs text-slate-500">NPI</p><p className="mt-1 font-mono font-bold">{selectedPatient.npi || 'Non attribué'}</p></div></div>
