@@ -9,41 +9,48 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      # Liaison automatique avec la base PostgreSQL Render
       - key: DATABASE_URL
         fromDatabase:
           name: santeplus-postgres
           property: connectionString
-      - key: POSTGRES_PASSWORD
-        sync: false
-      - key: MONGODB_URI
-        sync: false
+      # Clés de sécurité générées automatiquement par Render
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET
         generateValue: true
       - key: ENCRYPTION_KEY
         generateValue: true
+      # Origines CORS autorisées
       - key: CORS_ORIGINS
         value: https://santeplus-api.onrender.com
+      # IA Gemini (optionnel, fallback local si absent)
+      - key: GEMINI_API_KEY
+        sync: false
+      # Google Maps (optionnel, OpenStreetMap par défaut)
+      - key: GOOGLE_MAPS_PLATFORM_KEY
+        sync: false
+      # IPFS / Pinata pour les documents médicaux décentralisés (optionnel)
       - key: PINATA_API_KEY
         sync: false
       - key: PINATA_SECRET_API_KEY
         sync: false
+      # Paiements Lightning Bitcoin (optionnel)
       - key: LIGHTNING_PROVIDER
         value: lnbits
       - key: LNBITS_API_KEY
         sync: false
+      # Paiements Mobile Money FedaPay (optionnel)
       - key: FIAT_PROVIDER
         value: fedapay
       - key: FEDAPAY_SECRET_KEY
         sync: false
-      - key: INITIAL_ADMIN_PASSWORD
-        sync: false
-      - key: INITIAL_DIRECTOR_PASSWORD
-        sync: false
-      - key: INITIAL_DOCTOR_PASSWORD
+      # MongoDB (optionnel, fallback automatique sur PostgreSQL)
+      - key: MONGODB_URI
         sync: false
 
 databases:
   - name: santeplus-postgres
+    databaseName: santeplus
+    user: santeplus
     plan: free
