@@ -430,7 +430,7 @@ export default function ClinicalWorkspace({ doctorData }: { doctorData?: DoctorD
 
             <div className="mt-4 flex gap-2">
               <input value={identifier} onChange={event => setIdentifier(event.target.value)} onKeyDown={event => event.key === 'Enter' && identifyPatient(identifier)} placeholder="NPI, téléphone, nom ou email" className="min-w-0 flex-1 rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-emerald-500" />
-              <button onClick={() => identifyPatient(identifier)} className="rounded-xl bg-slate-900 px-4 font-bold text-white hover:bg-slate-700" aria-label="Rechercher le patient">
+              <button onClick={() => identifyPatient(identifier)} className="btn-primary rounded-xl px-5 font-bold text-white flex items-center justify-center cursor-pointer shadow-md" aria-label="Rechercher le patient">
                 <Search className="h-5 w-5" />
               </button>
             </div>

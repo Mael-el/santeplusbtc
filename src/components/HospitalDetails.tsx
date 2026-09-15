@@ -45,7 +45,7 @@ export default function HospitalDetails({
   return (
     <div id="hospital-details-page" className="max-w-4xl mx-auto bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
       {/* Cover Image & Header */}
-      <div className="relative h-64 md:h-80 bg-gray-900">
+      <div className="relative h-64 md:h-80 bg-emerald-950">
         <img
           src={hospital.image}
           alt={hospital.name}
@@ -269,7 +269,7 @@ export default function HospitalDetails({
 
                 <button
                   type="submit"
-                  className="w-full py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-sans font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                  className="w-full py-2.5 btn-primary rounded-xl text-xs font-sans font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
                 >
                   <Send className="w-3.5 h-3.5" />
                   Publier l'avis

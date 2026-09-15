@@ -668,10 +668,10 @@ Statut: ${isPaid ? 'PAYÉ & CERTIFIÉ' : 'EN ATTENTE DE PAIEMENT (SATS ou WALLET
               </div>
 
               {/* Totals Summary */}
-              <div className="p-5 bg-slate-900 text-white rounded-2xl flex items-center justify-between shadow-xs">
+              <div className="p-5 bg-gradient-to-br from-[#007048] to-[#00a86b] text-white rounded-2xl flex items-center justify-between shadow-md border border-[#c5ebd7]/30">
                 <div>
-                  <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold font-sans">Total Général à payer</p>
-                  <p className="text-2xl font-black font-sans mt-0.5 text-[#00D26A]">{(totalXOF ?? 0).toLocaleString('fr-FR')} XOF</p>
+                  <p className="text-[10px] text-emerald-100 uppercase tracking-wider font-bold font-sans">Total Général à payer</p>
+                  <p className="text-2xl font-black font-sans mt-0.5 text-white">{(totalXOF ?? 0).toLocaleString('fr-FR')} XOF</p>
                 </div>
                 <div className="text-right">
                   <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold font-sans">Contrevaleur Lightning</p>

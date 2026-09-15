@@ -399,7 +399,7 @@ export default function HospitalDashboard({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2">
               <button
                 onClick={handleSaveConsultation}
-                className="py-2.5 px-4 bg-slate-800 hover:bg-slate-900 text-white font-extrabold rounded-xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs"
+                className="py-2.5 px-4 bg-white border-2 border-[#c5ebd7] text-[#007048] hover:bg-[#f1faf6] font-extrabold rounded-xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-[0_3px_0_#c5ebd7]"
               >
                 <Save className="w-4 h-4" />
                 <span>Enregistrer dossier</span>

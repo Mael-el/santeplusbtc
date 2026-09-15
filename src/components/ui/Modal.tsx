@@ -7,7 +7,7 @@ interface ModalProps {
   title?: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
 }
 
 export const Modal = ({ isOpen, onClose, title, children, footer, size = 'md' }: ModalProps) => {
@@ -25,30 +25,32 @@ export const Modal = ({ isOpen, onClose, title, children, footer, size = 'md' }:
   if (!isOpen) return null;
 
   const sizeStyles = {
-    sm: 'w-96',
-    md: 'w-[500px]',
-    lg: 'w-[640px]',
+    sm: 'max-w-sm',
+    md: 'max-w-lg',
+    lg: 'max-w-2xl',
+    xl: 'max-w-4xl',
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className={`bg-white rounded-3xl shadow-2xl max-h-[90vh] overflow-y-auto ${sizeStyles[size]}`}>
+    <div className="fixed inset-0 bg-[#0f1f1a]/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+      <div className={`w-full bg-white rounded-3xl border border-[#e4f0e9] shadow-[0_16px_48px_rgba(0,100,65,0.14)] max-h-[90vh] flex flex-col overflow-hidden ${sizeStyles[size]}`}>
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-[#E5E5E7]">
-          {title && <h2 className="text-2xl font-bold text-[#1C1C1E]">{title}</h2>}
+        <div className="flex items-center justify-between px-6 py-5 border-b border-[#e4f0e9] bg-[#f7fcf9]">
+          {title && <h2 className="text-xl sm:text-2xl font-bold text-[#0f1f1a] font-display">{title}</h2>}
           <button
             onClick={onClose}
-            className="text-[#8E8E93] hover:text-[#1C1C1E] transition cursor-pointer"
+            className="w-10 h-10 rounded-xl flex items-center justify-center text-[#4d665c] hover:bg-[#e3f6ec] hover:text-[#007048] transition cursor-pointer"
+            aria-label="Fermer"
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6">{children}</div>
+        <div className="p-6 overflow-y-auto flex-1">{children}</div>
 
         {/* Footer */}
-        {footer && <div className="p-6 border-t border-[#E5E5E7]">{footer}</div>}
+        {footer && <div className="px-6 py-4 border-t border-[#e4f0e9] bg-[#f7fcf9]">{footer}</div>}
       </div>
     </div>
   );

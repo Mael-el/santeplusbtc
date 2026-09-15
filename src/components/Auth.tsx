@@ -707,15 +707,15 @@ export default function Auth({
             {/* Bouton de Connexion (Image 2) */}
             <button
               type="submit"
-              className="w-full py-3.5 bg-[#059669] hover:bg-[#047857] text-white font-bold rounded-2xl text-sm transition-all cursor-pointer shadow-sm hover:shadow"
+              className="w-full py-3.5 btn-primary text-white font-bold rounded-2xl text-sm transition-all cursor-pointer shadow-md"
             >
               Se connecter
             </button>
 
             {/* Séparateur */}
-            <div className="relative my-3 flex items-center justify-center">
-              <div className="border-t border-gray-100 w-full"></div>
-              <span className="bg-white px-3 text-[11px] text-gray-400 font-sans font-medium absolute">
+            <div className="relative my-4 flex items-center justify-center">
+              <div className="border-t border-[#d0e8db] w-full"></div>
+              <span className="bg-white px-3 text-[11px] text-[#6d877c] font-sans font-medium absolute">
                 Ou connectez-vous avec
               </span>
             </div>
@@ -725,7 +725,7 @@ export default function Auth({
               type="button"
               onClick={handleBiometricLogin}
               disabled={isBiometricScanning}
-              className="w-full py-3.5 bg-slate-50 hover:bg-slate-100 border border-gray-200 text-gray-800 font-bold rounded-2xl text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-2"
+              className="w-full py-3.5 btn-secondary font-bold rounded-2xl text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-2"
             >
               <Fingerprint className={`w-5 h-5 text-emerald-600 ${isBiometricScanning ? 'animate-pulse' : ''}`} />
               <span>{isBiometricScanning ? 'Scan biométrique...' : 'Biométrie (Face ID / Empreinte)'}</span>
