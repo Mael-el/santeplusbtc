@@ -583,8 +583,31 @@ ALTER TABLE payment_transactions ADD COLUMN IF NOT EXISTS method VARCHAR(20);
 ALTER TABLE payment_transactions ADD COLUMN IF NOT EXISTS transaction_id VARCHAR(150) UNIQUE;
 ALTER TABLE payment_transactions ADD COLUMN IF NOT EXISTS payment_hash VARCHAR(64) UNIQUE;
 ALTER TABLE payment_transactions ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP;
-ALTER TABLE payment_transactions ADD CONSTRAINT payment_transactions_type_check CHECK (type IN ('recharge', 'invoice', 'refund'));
-ALTER TABLE payment_transactions ADD CONSTRAINT payment_transactions_method_check CHECK (method IN ('mobile_money', 'lightning', 'wallet'));
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conrelid = 'payment_transactions'::regclass
+          AND conname = 'payment_transactions_type_check'
+    ) THEN
+        ALTER TABLE payment_transactions
+            ADD CONSTRAINT payment_transactions_type_check
+            CHECK (type IN ('recharge', 'invoice', 'refund'));
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conrelid = 'payment_transactions'::regclass
+          AND conname = 'payment_transactions_method_check'
+    ) THEN
+        ALTER TABLE payment_transactions
+            ADD CONSTRAINT payment_transactions_method_check
+            CHECK (method IN ('mobile_money', 'lightning', 'wallet'));
+    END IF;
+END $$;
 
 -- ============================================================================
 -- INDEX FACTURES

@@ -78,7 +78,7 @@ class DatabaseService {
    */
   public async testAndInit(): Promise<boolean> {
     if (!this.pool) {
-      if (this.isProduction) throw new Error('PostgreSQL pool is not configured');
+      console.warn('[Database] PostgreSQL pool unavailable; continuing in JSON fallback mode. Configure DATABASE_URL or POSTGRES_* for production.');
       return false;
     }
 
@@ -88,7 +88,7 @@ class DatabaseService {
         const res = await client.query('SELECT NOW() as current_time, version()');
         this.isConnected = true;
         console.log(`[PostgreSQL] ✅ Connecté avec succès à la base ${process.env.POSTGRES_DB || 'santeplus'}`);
-        
+
         // Auto-initialisation du schéma SQL
         await this.runInitSql(client);
         return true;
@@ -97,10 +97,7 @@ class DatabaseService {
       }
     } catch (err: any) {
       this.isConnected = false;
-      if (this.isProduction) {
-        throw new Error(`PostgreSQL is required in production: ${err.message}`);
-      }
-      console.log(`[Database] ℹ️ PostgreSQL hors ligne (${err.message}) → Mode JSON développement.`);
+      console.warn(`[Database] ℹ️ PostgreSQL hors ligne (${err.message}) → Mode JSON fallback. Configure la base pour passer en production.`);
       return false;
     }
   }
