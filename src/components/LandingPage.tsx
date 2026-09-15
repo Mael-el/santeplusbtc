@@ -1,10 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { 
-  User, Stethoscope, Building2, ShieldCheck, Zap, Shield, TrendingUp,
-  Volume2, VolumeX, MessageSquare, Send, ChevronDown, ChevronUp,
-  Sparkles, CheckCircle2, ArrowRight, HelpCircle, PhoneCall, Users, Activity, X
-} from 'lucide-react';
-import { motion, AnimatePresence, MotionConfig } from 'motion/react';
+import React, { useState } from 'react';
 
 interface LandingPageProps {
   onSelectRole: (role: 'patient' | 'doctor' | 'hospital') => void;
@@ -14,515 +8,648 @@ interface LandingPageProps {
   onOpenEmergency?: () => void;
 }
 
+type SelectedRole = 'patient' | 'doctor' | 'hospital';
+
+type FormErrors = {
+  name?: string;
+  phone?: string;
+  email?: string;
+};
+
+const styles = `
+  .sante-landing-root {
+    --vert-500: #00a86b;
+    --vert-600: #008f5a;
+    --vert-700: #007048;
+    --vert-800: #055637;
+    --vert-100: #e3f6ec;
+    --vert-50: #f1faf6;
+    --blanc: #ffffff;
+    --fond: #f0f9f4;
+    --texte: #0c1f18;
+    --texte-secondaire: #4a665c;
+    --bordure: #cce8d9;
+    --radius: 22px;
+    --font: "Atkinson Hyperlegible", system-ui, sans-serif;
+    --font-title: "Fraunces", Georgia, serif;
+    color: var(--texte);
+    font-family: var(--font);
+    background:
+      radial-gradient(ellipse 120% 80% at 50% -20%, rgba(0, 168, 107, 0.12), transparent 50%),
+      var(--fond);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 16px;
+    line-height: 1.5;
+  }
+
+  .sante-landing-shell {
+    width: 100%;
+    max-width: 460px;
+    position: relative;
+  }
+
+  .sante-logo {
+    text-align: center;
+    margin-bottom: 44px;
+    animation: santeFadeInDown 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .sante-logo-icon {
+    width: 72px;
+    height: 72px;
+    background: linear-gradient(145deg, #00a86b 0%, #2ecf8a 100%);
+    border-radius: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 18px;
+    color: white;
+    font-size: 34px;
+    font-weight: 800;
+    box-shadow:
+      0 10px 0 #007048,
+      0 16px 32px rgba(0, 168, 107, 0.35);
+    position: relative;
+  }
+
+  .sante-logo-icon::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 24px;
+    background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.25) 50%, transparent 70%);
+    animation: santeShine 4s ease-in-out infinite;
+  }
+
+  .sante-logo-title {
+    font-family: var(--font-title);
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--vert-800);
+    letter-spacing: -0.8px;
+  }
+
+  .sante-logo-tagline {
+    color: var(--texte-secondaire);
+    font-size: 15px;
+    margin-top: 6px;
+    font-weight: 500;
+    font-style: italic;
+  }
+
+  .sante-card {
+    background: var(--blanc);
+    border-radius: 32px;
+    padding: 40px 32px;
+    box-shadow:
+      0 4px 6px rgba(0, 90, 58, 0.03),
+      0 20px 50px rgba(0, 90, 58, 0.10);
+    border: 1px solid rgba(204, 232, 217, 0.8);
+    animation: santeFadeInUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+  }
+
+  .sante-card-title {
+    font-family: var(--font-title);
+    font-size: 28px;
+    color: var(--vert-800);
+    text-align: center;
+    margin-bottom: 8px;
+    letter-spacing: -0.5px;
+  }
+
+  .sante-card-subtitle {
+    text-align: center;
+    color: var(--texte-secondaire);
+    font-size: 16px;
+    margin-bottom: 36px;
+  }
+
+  .sante-choices {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-bottom: 36px;
+  }
+
+  .sante-choice {
+    position: relative;
+  }
+
+  .sante-choice input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .sante-choice label {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 20px 22px;
+    background: var(--blanc);
+    border: 2px solid var(--bordure);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--texte);
+    min-height: 84px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .sante-choice label::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 5px;
+    background: var(--vert-500);
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
+
+  .sante-choice label:hover {
+    border-color: #8fd8b0;
+    background: #f8fdf9;
+    transform: translateY(-3px);
+    box-shadow: 0 12px 28px rgba(0, 100, 65, 0.10);
+  }
+
+  .sante-choice input:checked + label {
+    border-color: var(--vert-500);
+    background: linear-gradient(135deg, #f1faf6 0%, #e8f7f0 100%);
+    box-shadow:
+      0 0 0 4px rgba(0, 168, 107, 0.12),
+      0 10px 28px rgba(0, 100, 65, 0.10);
+    transform: translateY(-2px);
+  }
+
+  .sante-choice input:checked + label::before {
+    opacity: 1;
+  }
+
+  .sante-choice-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
+    background: var(--vert-100);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    flex-shrink: 0;
+    transition: all 0.3s ease;
+  }
+
+  .sante-choice input:checked + label .sante-choice-icon {
+    background: linear-gradient(135deg, #00a86b, #2ecf8a);
+    color: white;
+    box-shadow: 0 6px 14px rgba(0, 168, 107, 0.3);
+    transform: scale(1.05);
+  }
+
+  .sante-choice-text small {
+    display: block;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--texte-secondaire);
+    margin-top: 3px;
+  }
+
+  .sante-form {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .sante-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .sante-label {
+    font-size: 14px;
+    color: var(--texte);
+    font-weight: 700;
+  }
+
+  .sante-input {
+    width: 100%;
+    min-height: 52px;
+    border-radius: 14px;
+    border: 1.5px solid var(--bordure);
+    background: #f9fdfb;
+    padding: 0 14px;
+    font-size: 16px;
+    color: var(--texte);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    font-family: var(--font);
+  }
+
+  .sante-input:focus {
+    outline: none;
+    border-color: var(--vert-500);
+    box-shadow: 0 0 0 4px rgba(0, 168, 107, 0.11);
+  }
+
+  .sante-error {
+    font-size: 12px;
+    color: #c93434;
+    font-weight: 700;
+    margin-top: 2px;
+  }
+
+  .sante-success {
+    margin-top: 16px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    background: #ecfdf5;
+    border: 1px solid #b7f0cb;
+    color: #0d7b4d;
+    font-size: 14px;
+    line-height: 1.5;
+    font-weight: 700;
+  }
+
+  .sante-btn {
+    width: 100%;
+    min-height: 58px;
+    border: none;
+    border-radius: 18px;
+    font-family: var(--font);
+    font-size: 18px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .sante-btn-primary {
+    background: linear-gradient(135deg, #00a86b 0%, #2ecf8a 100%);
+    color: white;
+    box-shadow: 0 14px 30px rgba(0, 168, 107, 0.25);
+  }
+
+  .sante-btn-primary:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 18px 35px rgba(0, 168, 107, 0.30);
+  }
+
+  .sante-btn-primary:disabled {
+    opacity: 0.75;
+    cursor: wait;
+  }
+
+  .sante-btn-secondary {
+    margin-top: 12px;
+    background: #edf8f2;
+    color: var(--vert-800);
+    border: 1px solid var(--bordure);
+  }
+
+  .sante-btn-secondary:hover {
+    background: #e5f4eb;
+  }
+
+  .sante-footer {
+    text-align: center;
+    margin-top: 26px;
+    font-size: 13px;
+    color: var(--texte-secondaire);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+
+  @keyframes santeFadeInDown {
+    from {
+      opacity: 0;
+      transform: translateY(-18px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes santeFadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(18px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes santeShine {
+    0% { transform: translateX(-120%); }
+    100% { transform: translateX(120%); }
+  }
+
+  @media (max-width: 480px) {
+    .sante-card {
+      padding: 28px 22px;
+    }
+
+    .sante-card-title {
+      font-size: 24px;
+    }
+
+    .sante-choice label {
+      padding: 18px 16px;
+      min-height: 72px;
+    }
+
+    .sante-choice-icon {
+      width: 46px;
+      height: 46px;
+      font-size: 22px;
+    }
+  }
+`;
+
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const validatePhone = (value: string) => {
+  const normalized = value.trim();
+  const pattern = /^(?:\+229\s?01\s?\d{2}\s?\d{2}\s?\d{2}\s?\d{2}|01\s?\d{2}\s?\d{2}\s?\d{2}\s?\d{2})$/;
+  return pattern.test(normalized);
+};
+
 export default function LandingPage({
   onSelectRole,
   onEnterApp,
   isLoggedIn,
   onOpenAuth,
-  onOpenEmergency
+  onOpenEmergency,
 }: LandingPageProps) {
-  // Voice Speech Synthesis state
-  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<SelectedRole>('patient');
+  const [formData, setFormData] = useState({ name: '', phone: '', email: '' });
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
-  const speakIntro = () => {
-    if (!('speechSynthesis' in window)) {
-      alert("La synthèse vocale n'est pas supportée sur ce navigateur.");
-      return;
+  const handleRoleSelect = (role: SelectedRole) => {
+    setSelectedRole(role);
+    setErrors({});
+    setIsSubmitted(false);
+
+    if (role === 'patient') {
+      if (typeof window !== 'undefined') {
+        try {
+          window.location.href = '/inscription-patient';
+          return;
+        } catch {
+          // fallback below
+        }
+      }
+      onSelectRole(role);
     }
-
-    if (isPlayingAudio) {
-      window.speechSynthesis.cancel();
-      setIsPlayingAudio(false);
-      return;
-    }
-
-    window.speechSynthesis.cancel();
-    const text = "Bienvenue sur Santé Plus Bénin. De l'urgence au soin en trois minutes. Si vous êtes un patient, touchez la carte verte Patient. Si vous êtes un médecin, touchez la carte bleue Médecin. Pour l'administration d'un hôpital, touchez la carte orange Hôpital. En cas d'urgence grave, touchez le bouton rouge en bas de votre écran.";
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'fr-FR';
-    utterance.rate = 0.95;
-    utterance.onend = () => setIsPlayingAudio(false);
-    utterance.onerror = () => setIsPlayingAudio(false);
-
-    setIsPlayingAudio(true);
-    window.speechSynthesis.speak(utterance);
   };
 
-  // FAQ state
-  const [activeFaq, setActiveFaq] = useState<number | null>(null);
-  const faqs = [
-    {
-      question: "Comment utiliser Santé+ sans savoir lire ni écrire ?",
-      answer: "Santé+ est spécialement conçu avec des repères visuels intuitifs : de grands boutons de couleur, la connexion par empreinte digitale ou scan de visage (biométrie), et un QR Code sécurisé. Vous pouvez également cliquer sur les icônes de haut-parleur pour écouter les explications et ordonnances à voix haute."
-    },
-    {
-      question: "Comment fonctionne le règlement rapide par Bitcoin Lightning ?",
-      answer: "Lors d'une consultation ou d'un acte médical, le paiement est instantané en moins de 2 secondes via le réseau Lightning de Bitcoin ou votre portefeuille en Francs CFA, garantissant une prise en charge immédiate sans attente au guichet."
-    },
-    {
-      question: "Mes données médicales sont-elles protégées ?",
-      answer: "Oui. Toutes vos données sont chiffrées et décentralisées. Aucun médecin ou tiers ne peut accéder à votre dossier sans votre consentement explicite, validé via votre QR code ou votre signature cryptographique."
-    },
-    {
-      question: "Que faire en cas d'urgence immédiate ?",
-      answer: "Cliquez sur le bouton rouge 'Urgence' situé en permanence en bas à droite de votre écran pour contacter directement le SAMU (15), les sapeurs-pompiers (118) ou obtenir l'itinéraire vers l'hôpital le plus proche."
+  const handleInputChange = (field: 'name' | 'phone' | 'email', value: string) => {
+    setFormData((current) => ({ ...current, [field]: value }));
+    setErrors((current) => ({ ...current, [field]: undefined }));
+  };
+
+  const handleContinue = () => {
+    if (selectedRole === 'patient') {
+      handleRoleSelect('patient');
+      return;
     }
-  ];
 
-  // Chatbot State
-  const [chatOpen, setChatOpen] = useState(false);
-  const [chatInput, setChatInput] = useState('');
-  const [chatMessages, setChatMessages] = useState<Array<{ role: 'user' | 'assistant', text: string }>>([
-    { role: 'assistant', text: "Bonjour ! Je suis l'assistant Santé+ Bénin. Posez-moi vos questions ou écoutez mes réponses audio." }
-  ]);
-  const [isTyping, setIsTyping] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (chatEndRef.current) {
-      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (selectedRole === 'doctor' || selectedRole === 'hospital') {
+      setIsSubmitted(false);
+      return;
     }
-  }, [chatMessages, isTyping]);
 
-  const handleSendChat = async (textToSend: string) => {
-    if (!textToSend.trim()) return;
-    setChatMessages(prev => [...prev, { role: 'user', text: textToSend }]);
-    setChatInput('');
-    setIsTyping(true);
+    onEnterApp('wallet');
+  };
 
-    // Add placeholder for streaming assistant message
-    setChatMessages(prev => [...prev, { role: 'assistant', text: '' }]);
+  const handleConnectionClick = () => {
+    if (typeof window !== 'undefined') {
+      try {
+        window.location.href = '/connexion';
+        return;
+      } catch {
+        // fallback below
+      }
+    }
+    onOpenAuth();
+  };
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const nextErrors: FormErrors = {};
+
+    if (!formData.name.trim()) {
+      nextErrors.name = 'Veuillez renseigner votre nom.';
+    }
+
+    if (!formData.phone.trim()) {
+      nextErrors.phone = 'Le numéro de téléphone est requis.';
+    } else if (!validatePhone(formData.phone)) {
+      nextErrors.phone = 'Format invalide. Exemple : +229 01 97 00 00 00';
+    }
+
+    if (!formData.email.trim()) {
+      nextErrors.email = 'Veuillez renseigner votre adresse email.';
+    } else if (!emailPattern.test(formData.email.trim())) {
+      nextErrors.email = 'Veuillez saisir un email valide.';
+    }
+
+    setErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length > 0) {
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    const payload = {
+      role: selectedRole,
+      name: formData.name.trim(),
+      phone: formData.phone.trim(),
+      email: formData.email.trim(),
+    };
 
     try {
-      const history = chatMessages.slice(1).map(m => ({
-        role: m.role === 'user' ? 'user' : 'model',
-        text: m.text
-      }));
-
-      const params = new URLSearchParams({
-        message: textToSend,
-        history: JSON.stringify(history)
+      const response = await fetch('/api/contact/professional', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+        credentials: 'include',
       });
 
-      const eventSource = new EventSource(`/api/chat/stream?${params.toString()}`);
-      let accumulated = '';
-
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.chunk) {
-            accumulated += data.chunk;
-            setChatMessages(prev => {
-              const msgs = [...prev];
-              msgs[msgs.length - 1] = { role: 'assistant', text: accumulated };
-              return msgs;
-            });
-          }
-          if (data.done) {
-            eventSource.close();
-            setIsTyping(false);
-          }
-          if (data.error) {
-            eventSource.close();
-            setIsTyping(false);
-          }
-        } catch { /* ignore parse errors */ }
-      };
-
-      eventSource.onerror = () => {
-        eventSource.close();
-        if (!accumulated) {
-          setChatMessages(prev => {
-            const msgs = [...prev];
-            msgs[msgs.length - 1] = { role: 'assistant', text: "Je suis là pour vous aider. Vous pouvez accéder à votre dossier médical, régler vos soins ou consulter la liste des hôpitaux partenaires." };
-            return msgs;
-          });
-        }
-        setIsTyping(false);
-      };
-    } catch (err) {
-      setChatMessages(prev => {
-        const msgs = [...prev];
-        msgs[msgs.length - 1] = { 
-          role: 'assistant', 
-          text: "Je suis là pour vous aider. Vous pouvez accéder à votre dossier médical, régler vos soins ou consulter la liste des hôpitaux partenaires." 
-        };
-        return msgs;
-      });
-      setIsTyping(false);
+      if (!response.ok) {
+        console.log('API /api/contact/professional indisponible, payload:', payload);
+      }
+    } catch (error) {
+      console.log('API /api/contact/professional indisponible, payload:', payload, error);
+    } finally {
+      setIsSubmitting(false);
+      setIsSubmitted(true);
+      setFormData({ name: '', phone: '', email: '' });
     }
   };
 
-
   return (
-    <MotionConfig transition={{ duration: 0 }} reducedMotion="always">
-    <div className="landing-page w-full flex flex-col items-center overflow-hidden">
-      
-      {/* Hero principal */}
-      <section className="relative w-full max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-8 lg:pt-12 pb-8 sm:pb-12 flex flex-col items-center text-center">
-        <div className="landing-orb landing-orb-one" aria-hidden="true" />
-        <div className="landing-orb landing-orb-two" aria-hidden="true" />
-        <div className="landing-grid" aria-hidden="true" />
-        
-        {/* Badge Officiel National */}
-        <motion.div
-          initial={{ opacity: 0, y: -12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55 }}
-          className="relative inline-flex max-w-full items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/80 text-slate-700 border border-emerald-200 text-[10px] sm:text-[11px] font-bold tracking-tight mb-5 shadow-sm backdrop-blur-sm"
-        >
-          <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
-          <span className="truncate">Portail National d'Interconnexion Médicale • République du Bénin</span>
-        </motion.div>
+    <div className="sante-landing-root">
+      <style>{styles}</style>
 
-        {/* Medical Icon & Audio helper */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.65, delay: 0.1, type: 'spring', stiffness: 180 }}
-          className="relative mb-5"
-        >
-          <div 
-            className="landing-logo-badge w-16 h-16 sm:w-20 sm:h-20 rounded-[1.4rem] bg-emerald-600 flex items-center justify-center text-white shadow-md hover:bg-emerald-700 transition-colors cursor-pointer"
-            onClick={speakIntro}
-            title="Cliquez pour écouter l'explication audio"
-          >
-            <Activity className="w-8 h-8 sm:w-10 sm:h-10" />
-          </div>
-          {/* Audio helper tag */}
-          <button
-            onClick={speakIntro}
-            className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 bg-white text-emerald-800 border border-emerald-200 px-2.5 py-0.5 rounded-full text-[10px] font-bold font-sans shadow-xs hover:bg-emerald-50 flex items-center gap-1 cursor-pointer whitespace-nowrap"
-          >
-            {isPlayingAudio ? (
-              <>
-                <VolumeX className="w-3 h-3 text-red-500 animate-pulse" />
-                <span>Arrêter l'audio</span>
-              </>
-            ) : (
-              <>
-                <Volume2 className="w-3 h-3 text-emerald-600" />
-                <span>Écouter (Audio)</span>
-              </>
-            )}
-          </button>
-        </motion.div>
-
-        {/* Main Headline */}
-        <motion.h1
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.65, delay: 0.18 }}
-          className="relative text-[2.2rem] sm:text-5xl lg:text-6xl font-extrabold font-sans text-slate-900 tracking-[-0.04em] leading-[1.02] max-w-4xl mt-1"
-        >
-          Accès immédiat aux soins, <span className="landing-highlight text-emerald-600">sans friction</span>
-        </motion.h1>
-
-        {/* Subtitle */}
-        <motion.p
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.28 }}
-          className="relative mt-4 text-sm sm:text-base lg:text-lg text-slate-600 font-sans max-w-2xl leading-relaxed"
-        >
-          Un écosystème santé sécurisé pour les patients, médecins, hôpitaux et administrateurs, avec dossier numérique, prise en charge rapide et paiements instantanés.
-        </motion.p>
-
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, delay: 0.34 }}
-          className="mt-5 flex flex-wrap items-center justify-center gap-2 text-[10px] sm:text-xs font-bold uppercase tracking-[0.12em] text-slate-600"
-        >
-          <span className="rounded-full border border-emerald-200 bg-white/85 px-3 py-1.5 text-emerald-800 shadow-sm">Dossier chiffré</span>
-          <span className="rounded-full border border-sky-200 bg-white/85 px-3 py-1.5 text-sky-700 shadow-sm">Consultation rapide</span>
-          <span className="rounded-full border border-amber-200 bg-white/85 px-3 py-1.5 text-amber-700 shadow-sm">Urgence 24/7</span>
-        </motion.div>
-
-        {/* 3 Action Cards (Patient / Médecin / Hôpital) */}
-        <div className="relative w-full grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 lg:gap-5 mt-8 sm:mt-10">
-          
-          {/* 1. PATIENT CARD */}
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.55, delay: 0.35 }}
-            onClick={() => onSelectRole('patient')}
-            className="landing-role-card landing-role-card-patient sante-card p-5 sm:p-5 lg:p-6 flex flex-col items-center text-center group cursor-pointer bg-white relative overflow-hidden border border-slate-200 hover:border-emerald-500 hover:shadow-md transition-all"
-          >
-            <div className="absolute top-0 left-0 right-0 h-1.5 bg-emerald-600"></div>
-            <div className="w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700 mb-3 group-hover:scale-105 transition-transform">
-              <User className="w-7 h-7" />
-            </div>
-            <span className="text-xs font-extrabold uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full mb-1.5">
-              Espace Citoyen
-            </span>
-            <h3 className="text-xl sm:text-2xl font-bold text-slate-900 font-sans">Patient</h3>
-            <p className="text-xs sm:text-sm text-slate-600 font-sans mt-1">
-              Dossier médical, QR Pass & Soins
-            </p>
-            <div className="mt-4 text-sm font-bold text-emerald-700 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
-              <span>Accéder à mon espace</span>
-              <ArrowRight className="w-4 h-4" />
-            </div>
-          </motion.div>
-
-          {/* 2. DOCTOR CARD */}
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.55, delay: 0.44 }}
-            onClick={() => onSelectRole('doctor')}
-            className="landing-role-card landing-role-card-doctor sante-card p-5 sm:p-5 lg:p-6 flex flex-col items-center text-center group cursor-pointer bg-white relative overflow-hidden border border-slate-200 hover:border-blue-500 hover:shadow-md transition-all"
-          >
-            <div className="absolute top-0 left-0 right-0 h-1.5 bg-blue-600"></div>
-            <div className="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-700 mb-3 group-hover:scale-105 transition-transform">
-              <Stethoscope className="w-7 h-7" />
-            </div>
-            <span className="text-xs font-extrabold uppercase tracking-wider text-blue-800 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full mb-1.5">
-              Espace Praticien
-            </span>
-            <h3 className="text-xl sm:text-2xl font-bold text-slate-900 font-sans">Médecin</h3>
-            <p className="text-xs sm:text-sm text-slate-600 font-sans mt-1">
-              Consultations, ordonnances & IA
-            </p>
-            <div className="mt-4 text-sm font-bold text-blue-700 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
-              <span>Consulter un dossier</span>
-              <ArrowRight className="w-4 h-4" />
-            </div>
-          </motion.div>
-
-          {/* 3. HOSPITAL CARD */}
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.55, delay: 0.53 }}
-            onClick={() => onSelectRole('hospital')}
-            className="landing-role-card landing-role-card-hospital sante-card p-5 sm:p-5 lg:p-6 flex flex-col items-center text-center group cursor-pointer bg-white relative overflow-hidden border border-slate-200 hover:border-amber-500 hover:shadow-md transition-all"
-          >
-            <div className="absolute top-0 left-0 right-0 h-1.5 bg-amber-500"></div>
-            <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700 mb-3 group-hover:scale-105 transition-transform">
-              <Building2 className="w-7 h-7" />
-            </div>
-            <span className="text-xs font-extrabold uppercase tracking-wider text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full mb-1.5">
-              Direction Hospitalière
-            </span>
-            <h3 className="text-xl sm:text-2xl font-bold text-slate-900 font-sans">Hôpital</h3>
-            <p className="text-xs sm:text-sm text-slate-600 font-sans mt-1">
-              Lits, personnel & régulation MSP
-            </p>
-            <div className="mt-4 text-sm font-bold text-amber-700 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
-              <span>Gérer l'établissement</span>
-              <ArrowRight className="w-4 h-4" />
-            </div>
-          </motion.div>
-
+      <div className="sante-landing-shell">
+        <div className="sante-logo">
+          <div className="sante-logo-icon" aria-label="Logo Santé+">🧬</div>
+          <h1 className="sante-logo-title">Santé+</h1>
+          <p className="sante-logo-tagline">De l'urgence au soin en 3 minutes</p>
         </div>
 
-        {/* 3 Compact Metric Cards (Couverture, Efficacité, Vitesse) */}
-        <div className="relative w-full grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
+        <div className="sante-card">
+          <h2 className="sante-card-title">Commencer</h2>
+          <p className="sante-card-subtitle">Choisissez votre profil pour accéder au bon parcours.</p>
 
-          {/* Metric 1: Couverture */}
-          <motion.div className="sante-card p-4 text-left bg-white border border-slate-200/80 rounded-2xl relative overflow-hidden flex items-center gap-3 shadow-xs">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-200">
-              <Shield className="w-5 h-5" />
+          <div className="sante-choices" role="radiogroup" aria-label="Choisir un profil">
+            <div className="sante-choice">
+              <input
+                type="radio"
+                id="role-patient"
+                name="role"
+                checked={selectedRole === 'patient'}
+                onChange={() => handleRoleSelect('patient')}
+              />
+              <label htmlFor="role-patient">
+                <span className="sante-choice-icon">👤</span>
+                <span className="sante-choice-text">
+                  Patient
+                  <small>Créer mon espace sécurisé</small>
+                </span>
+              </label>
             </div>
-            <div>
-              <div className="text-xl font-black text-slate-900 font-sans tracking-tight">
-                98%
-              </div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 block">COUVERTURE</span>
-              <p className="text-[11px] text-slate-500 font-sans leading-tight mt-0.5">
-                Des données patients sécurisées
-              </p>
-            </div>
-          </motion.div>
 
-          {/* Metric 2: Efficacité */}
-          <motion.div className="sante-card p-4 text-left bg-white border border-slate-200/80 rounded-2xl relative overflow-hidden flex items-center gap-3 shadow-xs">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center shrink-0 border border-blue-200">
-              <TrendingUp className="w-5 h-5" />
+            <div className="sante-choice">
+              <input
+                type="radio"
+                id="role-doctor"
+                name="role"
+                checked={selectedRole === 'doctor'}
+                onChange={() => handleRoleSelect('doctor')}
+              />
+              <label htmlFor="role-doctor">
+                <span className="sante-choice-icon">🩺</span>
+                <span className="sante-choice-text">
+                  Médecin
+                  <small>Accéder à la plateforme</small>
+                </span>
+              </label>
             </div>
-            <div>
-              <div className="text-xl font-black text-slate-900 font-sans tracking-tight">
-                40%
-              </div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-blue-800 block">EFFICACITÉ</span>
-              <p className="text-[11px] text-slate-500 font-sans leading-tight mt-0.5">
-                D'économie sur la gestion des soins
-              </p>
-            </div>
-          </motion.div>
 
-          {/* Metric 3: Vitesse */}
-          <motion.div className="sante-card p-4 text-left bg-white border border-slate-200/80 rounded-2xl relative overflow-hidden flex items-center gap-3 shadow-xs">
-            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center shrink-0 border border-amber-200">
-              <Zap className="w-5 h-5 fill-amber-500 text-amber-500" />
+            <div className="sante-choice">
+              <input
+                type="radio"
+                id="role-hospital"
+                name="role"
+                checked={selectedRole === 'hospital'}
+                onChange={() => handleRoleSelect('hospital')}
+              />
+              <label htmlFor="role-hospital">
+                <span className="sante-choice-icon">🏥</span>
+                <span className="sante-choice-text">
+                  Hôpital
+                  <small>Présenter le logiciel</small>
+                </span>
+              </label>
             </div>
-            <div>
-              <div className="text-xl font-black text-slate-900 font-sans tracking-tight">
-                &lt; 2s
-              </div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 block">VITESSE RÈGLEMENT</span>
-              <p className="text-[11px] text-slate-500 font-sans leading-tight mt-0.5">
-                Règlement direct par Bitcoin Lightning
-              </p>
-            </div>
-          </motion.div>
-
-        </div>
-
-      </section>
-
-      {/* FAQ & Voice Assistance Section */}
-      <section className="w-full max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 pb-16">
-        <div className="landing-faq bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 md:p-8 space-y-6 shadow-xs">
-          <div className="flex items-center justify-between">
-            <div className="space-y-1 text-left">
-              <h3 className="text-lg font-black text-slate-900 font-sans flex items-center gap-2">
-                <HelpCircle className="w-5 h-5 text-emerald-600" />
-                Foire Aux Questions & Guide Simplifié
-              </h3>
-              <p className="text-xs text-slate-500">Comprendre le fonctionnement en toute simplicité</p>
-            </div>
-            <button
-              onClick={speakIntro}
-              className="p-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
-            >
-              <Volume2 className="w-4 h-4" />
-              <span className="hidden sm:inline">Guide Audio</span>
-            </button>
           </div>
 
-          <div className="space-y-3">
-            {faqs.map((faq, idx) => (
-              <div 
-                key={idx}
-                className="border border-slate-200 rounded-2xl overflow-hidden bg-white"
-              >
-                <button
-                  onClick={() => setActiveFaq(activeFaq === idx ? null : idx)}
-                  className="w-full py-3.5 px-5 flex items-center justify-between text-left font-sans font-bold text-slate-800 text-xs sm:text-sm gap-3 cursor-pointer hover:bg-slate-50 transition-colors"
-                >
-                  <span>{faq.question}</span>
-                  {activeFaq === idx ? (
-                    <ChevronUp className="w-4 h-4 text-emerald-600 shrink-0" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
-                  )}
-                </button>
-                
-                <AnimatePresence initial={false}>
-                  {activeFaq === idx && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <div className="px-5 pb-4 pt-1 text-xs text-slate-600 leading-relaxed border-t border-slate-100">
-                        {faq.answer}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Floating Chat Assistant Button & Modal (Positioned cleanly alongside Emergency SAMU) */}
-      <div className="fixed bottom-20 right-3 sm:bottom-5 sm:right-52 z-40 flex flex-col items-end">
-        <AnimatePresence>
-          {chatOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: 20, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 20, scale: 0.95 }}
-              className="w-[320px] sm:w-[360px] h-[450px] bg-white rounded-3xl shadow-xl border border-slate-200 flex flex-col overflow-hidden mb-3 absolute bottom-12 right-0 z-50"
-            >
-              <div className="p-3.5 bg-emerald-700 text-white flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center text-white font-black text-xs">
-                    S+
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-white">Assistant Vocal Santé+</h4>
-                    <span className="text-[10px] text-emerald-100 flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                      En ligne • Réponses audio
-                    </span>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => setChatOpen(false)}
-                  className="text-white/80 hover:text-white p-1 cursor-pointer transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-3.5 space-y-2.5 bg-slate-50 text-xs">
-                {chatMessages.map((msg, idx) => (
-                  <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[85%] rounded-2xl px-3.5 py-2 leading-relaxed ${
-                      msg.role === 'user' 
-                        ? 'bg-emerald-600 text-white shadow-xs'
-                        : 'bg-white text-slate-800 border border-slate-200/80 shadow-xs'
-                    }`}>
-                      {msg.text}
-                    </div>
-                  </div>
-                ))}
-                {isTyping && (
-                  <div className="flex justify-start">
-                    <div className="bg-white text-slate-500 border border-slate-200 rounded-2xl px-3.5 py-2 text-xs flex items-center gap-1 shadow-xs">
-                      <span className="w-1.5 h-1.5 bg-emerald-600 rounded-full animate-bounce"></span>
-                      <span className="w-1.5 h-1.5 bg-emerald-600 rounded-full animate-bounce delay-100"></span>
-                      <span className="w-1.5 h-1.5 bg-emerald-600 rounded-full animate-bounce delay-200"></span>
-                    </div>
-                  </div>
-                )}
-                <div ref={chatEndRef} />
-              </div>
-
-              <form 
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleSendChat(chatInput);
-                }}
-                className="p-2.5 bg-white border-t border-slate-200 flex items-center gap-2"
-              >
+          {selectedRole !== 'patient' && (
+            <form className="sante-form" onSubmit={handleSubmit} noValidate>
+              <div className="sante-form-group">
+                <label className="sante-label" htmlFor="professional-name">Nom et prénom</label>
                 <input
+                  id="professional-name"
+                  className="sante-input"
                   type="text"
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="Posez votre question..."
-                  className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors"
+                  placeholder="Nom et prénom"
+                  value={formData.name}
+                  onChange={(event) => handleInputChange('name', event.target.value)}
                 />
-                <button
-                  type="submit"
-                  className="w-7 h-7 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center cursor-pointer shrink-0 transition-colors shadow-xs"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                </button>
-              </form>
-            </motion.div>
+                {errors.name && <span className="sante-error">{errors.name}</span>}
+              </div>
+
+              <div className="sante-form-group">
+                <label className="sante-label" htmlFor="professional-phone">Numéro de téléphone (Bénin, 10 chiffres)</label>
+                <input
+                  id="professional-phone"
+                  className="sante-input"
+                  type="tel"
+                  inputMode="tel"
+                  placeholder="Ex : 01 97 00 00 00"
+                  value={formData.phone}
+                  onChange={(event) => handleInputChange('phone', event.target.value)}
+                />
+                {errors.phone && <span className="sante-error">{errors.phone}</span>}
+              </div>
+
+              <div className="sante-form-group">
+                <label className="sante-label" htmlFor="professional-email">Adresse email</label>
+                <input
+                  id="professional-email"
+                  className="sante-input"
+                  type="email"
+                  placeholder="name@example.com"
+                  value={formData.email}
+                  onChange={(event) => handleInputChange('email', event.target.value)}
+                />
+                {errors.email && <span className="sante-error">{errors.email}</span>}
+              </div>
+
+              <button
+                className="sante-btn sante-btn-primary"
+                type="submit"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Envoi en cours...' : 'Envoyer'}
+              </button>
+
+              {isSubmitted && (
+                <div className="sante-success">
+                  Demande bien reçue ! L'équipe Santé+ BTC vous contactera très prochainement pour vous présenter le logiciel et discuter des conditions.
+                </div>
+              )}
+            </form>
           )}
-        </AnimatePresence>
 
-        <button
-          onClick={() => setChatOpen(!chatOpen)}
-          className="h-9 px-3.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-full shadow-md cursor-pointer flex items-center gap-2 text-xs font-bold transition-colors"
-          title="Assistant Santé+"
-        >
-          <MessageSquare className="w-3.5 h-3.5 text-white" />
-          <span className="hidden sm:inline">Assistant IA</span>
-        </button>
+          {selectedRole === 'patient' && (
+            <>
+              <button className="sante-btn sante-btn-primary" type="button" onClick={handleContinue}>
+                Continuer
+              </button>
+              <button className="sante-btn sante-btn-secondary" type="button" onClick={handleConnectionClick}>
+                Se connecter
+              </button>
+            </>
+          )}
+
+          {(selectedRole === 'doctor' || selectedRole === 'hospital') && (
+            <button className="sante-btn sante-btn-secondary" type="button" onClick={handleConnectionClick}>
+              Se connecter
+            </button>
+          )}
+        </div>
+
+        <div className="sante-footer">Bénin · E-santé · Bitcoin · Accès sécurisé</div>
       </div>
-
     </div>
-    </MotionConfig>
   );
 }
