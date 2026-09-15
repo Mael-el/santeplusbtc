@@ -73,6 +73,24 @@ export interface Appointment {
   createdAt?: string;
 }
 
+export type PaymentMethod = 'wallet' | 'mtn' | 'moov' | 'celtiis' | 'lightning';
+export type RechargeStatus = 'PENDING' | 'COMPLETED' | 'FAILED' | 'REFUNDED';
+export type InvoiceStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
+
+export interface WalletRecharge {
+  id: string;
+  patientId: number;
+  amountXof: number;
+  amountSats?: number;
+  method: 'mobile_money' | 'lightning';
+  provider: string;
+  status: RechargeStatus;
+  transactionId?: string;
+  paymentHash?: string;
+  createdAt: string;
+  completedAt?: string;
+}
+
 export interface Invoice {
   id: string;
   patientName: string;
@@ -94,6 +112,9 @@ export interface Invoice {
   paymentQrCode?: string;
   contentHash?: string;
   notes?: string;
+  status?: InvoiceStatus;
+  paymentHash?: string;
+  paidAt?: string;
 }
 
 export interface Patient {
@@ -180,5 +201,4 @@ export type AppView =
   | 'platform-owner'
   | 'dossier'
   | 'blood'
-  | 'tontines'
   | 'faq';

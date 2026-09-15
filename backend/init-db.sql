@@ -328,25 +328,6 @@ CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(read);
 
 -- ============================================================================
--- TABLE TONTINES SANTÉ
--- ============================================================================
-
-CREATE TABLE IF NOT EXISTS tontines (
-    id VARCHAR(50) PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    monthly_contribution INTEGER NOT NULL DEFAULT 10000,
-    total_savings BIGINT DEFAULT 0,
-    members_count INTEGER DEFAULT 1,
-    creator_id INTEGER REFERENCES users(id),
-    status VARCHAR(20) DEFAULT 'active',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX IF NOT EXISTS idx_tontines_status ON tontines(status);
-
--- ============================================================================
 -- TABLE DONS DE SANG
 -- ============================================================================
 
@@ -564,6 +545,54 @@ CREATE TABLE IF NOT EXISTS wallet_transactions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_wallet_transactions_wallet ON wallet_transactions(wallet_id, created_at DESC);
+
+-- ============================================================================
+-- TABLE RECHARGES WALLET PATIENT
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS wallet_recharges (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    patient_id INTEGER NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+    amount_xof INTEGER NOT NULL CHECK (amount_xof > 0),
+    amount_sats INTEGER,
+    method VARCHAR(20) NOT NULL,
+    provider VARCHAR(20) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    transaction_id VARCHAR(150),
+    payment_hash VARCHAR(64),
+    metadata JSONB,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP,
+    CONSTRAINT wallet_recharges_method_check CHECK (method IN ('mobile_money', 'lightning')),
+    CONSTRAINT wallet_recharges_status_check CHECK (status IN ('PENDING', 'COMPLETED', 'FAILED', 'REFUNDED'))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_wallet_recharges_transaction_id ON wallet_recharges(transaction_id) WHERE transaction_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_wallet_recharges_payment_hash ON wallet_recharges(payment_hash) WHERE payment_hash IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_wallet_recharges_patient ON wallet_recharges(patient_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_wallet_recharges_status ON wallet_recharges(status);
+
+-- ============================================================================
+-- ENRICHISSEMENT TABLE PAYMENT_TRANSACTIONS
+-- ============================================================================
+
+ALTER TABLE payment_transactions ADD COLUMN IF NOT EXISTS patient_id INTEGER REFERENCES patients(id) ON DELETE SET NULL;
+ALTER TABLE payment_transactions ADD COLUMN IF NOT EXISTS type VARCHAR(20) NOT NULL DEFAULT 'invoice';
+ALTER TABLE payment_transactions ADD COLUMN IF NOT EXISTS reference_id UUID;
+ALTER TABLE payment_transactions ADD COLUMN IF NOT EXISTS method VARCHAR(20);
+ALTER TABLE payment_transactions ADD COLUMN IF NOT EXISTS transaction_id VARCHAR(150) UNIQUE;
+ALTER TABLE payment_transactions ADD COLUMN IF NOT EXISTS payment_hash VARCHAR(64) UNIQUE;
+ALTER TABLE payment_transactions ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP;
+ALTER TABLE payment_transactions ADD CONSTRAINT payment_transactions_type_check CHECK (type IN ('recharge', 'invoice', 'refund'));
+ALTER TABLE payment_transactions ADD CONSTRAINT payment_transactions_method_check CHECK (method IN ('mobile_money', 'lightning', 'wallet'));
+
+-- ============================================================================
+-- INDEX FACTURES
+-- ============================================================================
+
+CREATE INDEX IF NOT EXISTS idx_invoices_doctor_id ON invoices(doctor_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_hospital_id ON invoices(hospital_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_payment_hash ON invoices(payment_hash);
 
 -- ============================================================================
 -- JOURNAL DE RECONCILIATION DES WEBHOOKS

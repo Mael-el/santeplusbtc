@@ -1,5 +1,5 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
-import { ApiResponse, AuthResponse, User, AuthRequest } from '../types/index';
+import { ApiResponse, AuthResponse, User, AuthRequest, PaymentMethod, WalletRecharge, Invoice } from '../types/index';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -292,26 +292,148 @@ class ApiClient {
   }
 
   // ========================================================================
-  // PAYMENT ENDPOINTS
+  // PAYMENT ENDPOINTS (V3 — Wallet + Invoices)
   // ========================================================================
 
+  async walletRecharge(
+    amountXof: number,
+    method: PaymentMethod,
+    provider?: string,
+    phone?: string
+  ): Promise<WalletRecharge & {
+    paymentUrl?: string;
+    bolt11?: string;
+    paymentHash?: string;
+    amountSats?: number;
+    expiresAt?: number;
+  }> {
+    const body: Record<string, any> = { amountXof, method };
+    if (provider) body.provider = provider;
+    if (phone) body.phone = phone;
+    const resp = await this.client.post('/wallet/recharge', body);
+    const d = resp.data?.data || resp.data;
+    const result: any = { ...d };
+    if (d?.momo) {
+      result.paymentUrl = d.momo.paymentUrl;
+      result.transactionId = d.momo.reference || d.momo.transactionId;
+    }
+    if (d?.lightning) {
+      result.bolt11 = d.lightning.bolt11;
+      result.paymentHash = d.lightning.paymentHash;
+      result.amountSats = d.lightning.amountSats;
+      result.expiresAt = d.lightning.expiresAt;
+    }
+    return result;
+  }
+
+  async getWalletBalance(): Promise<{ balanceXof: number; balanceSats: number }> {
+    const resp = await this.client.get('/wallet/balance');
+    const data = resp.data?.data || resp.data;
+    return {
+      balanceXof: Number(data?.balance_xof ?? data?.balanceXof ?? 0),
+      balanceSats: Number(data?.balance_sats ?? data?.balanceSats ?? 0),
+    };
+  }
+
+  async getWalletRecharges(limit = 50): Promise<WalletRecharge[]> {
+    const resp = await this.client.get('/wallet/recharges', { params: { limit } });
+    return (resp.data?.data || resp.data || []) as WalletRecharge[];
+  }
+
+  async createInvoiceV3(data: {
+    patientId: number;
+    items: { label: string; quantity?: number; unit_price_xof: number }[];
+    hospitalId?: number;
+    consultationId?: number;
+  }): Promise<Invoice & { id: string; totalXof: number; status: string; hash: string }> {
+    const resp = await this.client.post('/invoices', data);
+    return resp.data?.data || resp.data;
+  }
+
+  async getInvoicesV3(limit = 50): Promise<Invoice[]> {
+    const resp = await this.client.get('/invoices', { params: { limit } });
+    return (resp.data?.data || resp.data || []) as Invoice[];
+  }
+
+  async getInvoiceV3(invoiceId: string): Promise<Invoice | null> {
+    try {
+      const resp = await this.client.get(`/invoices/${invoiceId}`);
+      return (resp.data?.data || resp.data || null) as Invoice | null;
+    } catch {
+      return null;
+    }
+  }
+
+  async payInvoiceV3(
+    invoiceId: string,
+    method: PaymentMethod,
+    provider?: string,
+    phone?: string
+  ): Promise<Invoice & {
+    status: string;
+    paidAt?: string;
+    newBalance?: number;
+    paymentUrl?: string;
+    bolt11?: string;
+    paymentHash?: string;
+    amountSats?: number;
+  }> {
+    const body: Record<string, any> = { method };
+    if (provider) body.provider = provider;
+    if (phone) body.phone = phone;
+    const resp = await this.client.post(`/invoices/${invoiceId}/pay`, body);
+    const d = resp.data?.data || resp.data;
+    const result: any = { ...d };
+    if (d?.momo) result.paymentUrl = d.momo.paymentUrl;
+    if (d?.lightning) {
+      result.bolt11 = d.lightning.bolt11;
+      result.paymentHash = d.lightning.paymentHash;
+      result.amountSats = d.lightning.amountSats;
+    }
+    return result;
+  }
+
+  async getInvoiceStatus(invoiceId: string): Promise<{
+    id: string;
+    status: string;
+    totalXof: number;
+    paymentMethod?: string;
+    paidAt?: string;
+    paymentHash?: string;
+    lightningPaid?: boolean;
+    paid: boolean;
+  }> {
+    const resp = await this.client.get(`/invoices/${invoiceId}/status`);
+    const d = resp.data?.data || resp.data;
+    return {
+      ...d,
+      paid: d?.status === 'PAID' || d?.lightningPaid || false,
+    };
+  }
+
+  // Legacy — pour compatibilité ascendante
   async createInvoice(data: any): Promise<any> {
-    const response = await this.client.post('/payments/invoice', data);
-    return response.data.data;
+    return this.createInvoiceV3(data);
   }
 
   async payInvoice(invoiceId: string, method: string): Promise<any> {
-    const response = await this.client.post('/payments/pay', { invoiceId, method });
-    return response.data.data;
+    return this.payInvoiceV3(invoiceId, method as any);
+  }
+
+  async getInvoices(): Promise<any[]> {
+    return this.getInvoicesV3();
+  }
+
+  async getInvoice(invoiceId: string): Promise<any> {
+    return this.getInvoiceV3(invoiceId);
+  }
+
+  async getPaymentStatus(invoiceId: string): Promise<any> {
+    return this.getInvoiceStatus(invoiceId);
   }
 
   async refundInvoice(invoiceId: string, reason?: string): Promise<any> {
     const response = await this.client.post(`/payments/refund/${invoiceId}`, { reason });
-    return response.data.data;
-  }
-
-  async getPaymentStatus(paymentId: string): Promise<any> {
-    const response = await this.client.get(`/payments/status/${paymentId}`);
     return response.data.data;
   }
 
@@ -320,23 +442,8 @@ class ApiClient {
     return response.data.data;
   }
 
-  async getWalletBalance(): Promise<{ balanceXof: number; balanceSats: number }> {
-    const response = await this.client.get('/payments/balance');
-    return response.data.data;
-  }
-
   async convertCurrency(amount: number, from: string, to: string): Promise<{ result: number }> {
     const response = await this.client.post('/payments/convert', { amount, from, to });
-    return response.data.data;
-  }
-
-  async getInvoices(): Promise<any[]> {
-    const response = await this.client.get('/payments/invoices');
-    return response.data.data;
-  }
-
-  async getInvoice(invoiceId: string): Promise<any> {
-    const response = await this.client.get(`/payments/invoice/${invoiceId}`);
     return response.data.data;
   }
 
@@ -372,43 +479,6 @@ class ApiClient {
   async getNearbyBloodDonors(latitude: number, longitude: number, bloodType: string): Promise<any[]> {
     const response = await this.client.get('/blood/donors/nearby', {
       params: { latitude, longitude, bloodType },
-    });
-    return response.data.data;
-  }
-
-  // ========================================================================
-  // TONTINE ENDPOINTS
-  // ========================================================================
-
-  async getTontines(): Promise<any[]> {
-    const response = await this.client.get('/tontines');
-    return response.data.data;
-  }
-
-  async getTontine(id: number): Promise<any> {
-    const response = await this.client.get(`/tontines/${id}`);
-    return response.data.data;
-  }
-
-  async createTontine(data: any): Promise<any> {
-    const response = await this.client.post('/tontines', data);
-    return response.data.data;
-  }
-
-  async joinTontine(tontineId: number): Promise<any> {
-    const response = await this.client.post(`/tontines/${tontineId}/join`, {});
-    return response.data.data;
-  }
-
-  async contributeTontine(tontineId: number, amount: number): Promise<any> {
-    const response = await this.client.post(`/tontines/${tontineId}/contribute`, { amount });
-    return response.data.data;
-  }
-
-  async requestTontineWithdrawal(tontineId: number, amount: number, purpose: string): Promise<any> {
-    const response = await this.client.post(`/tontines/${tontineId}/withdrawal`, {
-      amount,
-      purpose,
     });
     return response.data.data;
   }

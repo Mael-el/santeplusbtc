@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { jsPDF } from 'jspdf';
+import InvoicePaymentModal from './Invoice/InvoicePaymentModal';
 
 interface PaymentFlowProps {
   hospital: Hospital;
@@ -51,14 +52,51 @@ export default function PaymentFlow({
   const [invoiceId, setInvoiceId] = useState<string>('');
   const [isFetchingInvoice, setIsFetchingInvoice] = useState<boolean>(false);
 
+  // Modern V3 InvoicePaymentModal state
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentInvoiceObj, setPaymentInvoiceObj] = useState<Invoice | null>(null);
+
   // Set patient's name
   const patientName = userName || 'Patient';
 
-  const activeDocs = customDocuments;
+  const activeDocs: MedicalDocument[] = (() => {
+    if (Array.isArray(customDocuments) && customDocuments.length > 0) return customDocuments;
+    try {
+      const defaultPrice = Number(hospital.priceList?.[0]?.priceXOF) || 2000;
+      const defaultLabel = hospital.priceList?.[0]?.name || 'Consultation Médecine Générale';
+      return [
+        {
+          id: `doc-consult-${Date.now()}`,
+          title: defaultLabel,
+          type: 'consultation',
+          hospitalName: hospital.name,
+          hospitalAddress: hospital.address,
+          doctorName: getDoctorName(hospital.id),
+          date: new Date().toLocaleDateString('fr-FR', {
+            year: 'numeric', month: 'long', day: 'numeric',
+          }),
+          priceXOF: defaultPrice,
+          items: [{ name: defaultLabel, priceXOF: defaultPrice }],
+        } as MedicalDocument,
+      ];
+    } catch {
+      return [];
+    }
+  })();
+
+  const sanitizedDocs = activeDocs.map(d => ({
+    ...d,
+    priceXOF: Number(d?.priceXOF) || 0,
+    items: Array.isArray(d?.items) && d.items.length > 0
+      ? d.items.map(it => ({ name: String(it?.name || 'Acte médical'), priceXOF: Number(it?.priceXOF) || 0 }))
+      : [{ name: String(d?.title || 'Acte médical'), priceXOF: Number(d?.priceXOF) || 0 }],
+  }));
+
+  const safeDocItems = sanitizedDocs.flatMap(doc => doc.items || []);
 
   // Computed prices
-  const totalXOF = activeDocs.reduce((acc, doc) => acc + doc.priceXOF, 0);
-  const totalSats = Math.round(totalXOF * XOF_TO_SATS);
+  const totalXOF = sanitizedDocs.reduce((acc, doc) => acc + (Number(doc.priceXOF) || 0), 0);
+  const totalSats = Math.round(Math.max(0, totalXOF) * XOF_TO_SATS);
 
   // Default fallback invoice
   const lightningInvoiceFallback = `lnbc100u1p392066pp5y6m8a6uclm0aqlu7r96paxd0zcrsqm3sff4pghu5r3qpsms9p57qdqg2fhk6mmpwq5kget8wf5k2cmzv9hkutssw3skget8v4cxjumn94sk2uewdqh8gmpwd3jxc6tvd3hxw3scqpvqyjw5qcqpxrzjqw72q3ksla762hsp48qaswep7mqcxw6mppv6mpwpwqf7mpws9p4xpwpvq5qshxztf9f8gskqfq9gqkcxsqypqxpqxzszqxpqw7p9sk7tve9ekymv9cxqpxrzjqw72q3ksla762hsp48qaswep7mqcxw6mppv6mpwpwqf7mpws9p4xpwpvq5qshxztf9f8gskqfq9gqkcxsqypqxpqxzszqxpqw7p9`;
@@ -122,7 +160,7 @@ export default function PaymentFlow({
               hour: '2-digit',
               minute: '2-digit'
             }),
-            items: activeDocs.flatMap(doc => doc.items),
+            items: safeDocItems,
             totalXOF,
             totalSats,
             paymentMethod: selectedMethod === 'family-help' ? 'FamilyHelp' : 'Lightning',
@@ -180,7 +218,7 @@ export default function PaymentFlow({
           hour: '2-digit',
           minute: '2-digit'
         }),
-        items: activeDocs.flatMap(doc => doc.items),
+        items: safeDocItems,
         totalXOF,
         totalSats,
         paymentMethod: 'Wallet',
@@ -212,7 +250,7 @@ export default function PaymentFlow({
           hour: '2-digit',
           minute: '2-digit'
         }),
-        items: activeDocs.flatMap(doc => doc.items),
+        items: safeDocItems,
         totalXOF,
         totalSats,
         paymentMethod: method,
@@ -241,7 +279,7 @@ export default function PaymentFlow({
         hour: '2-digit',
         minute: '2-digit'
       }),
-      items: activeDocs.flatMap(doc => doc.items),
+      items: safeDocItems,
       totalXOF,
       totalSats,
       paymentMethod: 'Lightning',
@@ -272,7 +310,7 @@ export default function PaymentFlow({
         patientPhone,
         hospitalName: hospital.name,
         hospitalAddress: hospital.address,
-        items: activeDocs.flatMap(doc => doc.items),
+        items: safeDocItems,
         totalXOF,
         paymentMethod: 'Lightning',
         isPaid: false,
@@ -637,13 +675,13 @@ Statut: ${isPaid ? 'PAYÉ & CERTIFIÉ' : 'EN ATTENTE DE PAIEMENT (SATS ou WALLET
                   <CheckCircle2 className="w-5 h-5" />
                 </div>
                 <div className="text-xs font-sans text-emerald-800 leading-tight">
-                  <strong>{activeDocs.length} Document(s) reçu(s) :</strong> Autorisation validée. L'établissement a déposé vos frais médicaux à régler.
+                  <strong>{sanitizedDocs.length} Document(s) reçu(s) :</strong> Autorisation validée. L'établissement a déposé vos frais médicaux à régler.
                 </div>
               </div>
 
               {/* Itemized Document Cards */}
               <div className="space-y-3 flex-1 overflow-y-auto max-h-[280px] pr-1">
-                {activeDocs.map((doc) => (
+                {sanitizedDocs.map((doc) => (
                   <div key={doc.id} className="p-4 bg-white border border-gray-100 rounded-2xl shadow-2xs space-y-3 hover:border-gray-200 transition-all">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold font-sans text-gray-800 flex items-center gap-1.5">
@@ -780,8 +818,8 @@ Statut: ${isPaid ? 'PAYÉ & CERTIFIÉ' : 'EN ATTENTE DE PAIEMENT (SATS ou WALLET
                 </button>
               </div>
 
-              {/* SUB-SECTIONS ACCORDING TO CHOSEN METHOD */}
-              <div className="border-t border-gray-100 pt-5">
+              {/* NOUVEAU BOUTON PRINCIPAL : MODALE UNIFIÉE V3 */}
+              <div className="border-t border-gray-100 pt-5 space-y-4">
                 {isSimulatingPayment ? (
                   <div className="py-8 text-center space-y-3">
                     <RefreshCw className="w-8 h-8 text-[#059669] animate-spin mx-auto" />
@@ -790,162 +828,95 @@ Statut: ${isPaid ? 'PAYÉ & CERTIFIÉ' : 'EN ATTENTE DE PAIEMENT (SATS ou WALLET
                   </div>
                 ) : (
                   <>
-                    {/* Method: Wallet */}
-                    {selectedMethod === 'wallet' && (
-                      <div className="space-y-4">
-                        {walletBalance >= totalXOF ? (
-                          <button
-                            onClick={handlePayWithWallet}
-                            className="w-full py-3.5 bg-[#00D26A] hover:bg-[#00D26A]/95 text-white font-bold font-sans text-sm rounded-2xl shadow-sm transition-all text-center cursor-pointer"
-                          >
-                            Confirmer et Débiter {(totalXOF ?? 0).toLocaleString('fr-FR')} XOF
-                          </button>
-                        ) : (
-                          <div className="p-4 bg-red-50 border border-red-100 rounded-2xl text-red-700 text-xs font-sans font-medium text-center">
-                            Solde insuffisant dans votre Wallet Santé+ ({(walletBalance ?? 0).toLocaleString('fr-FR')} XOF restant). Veuillez choisir un autre mode de paiement ou recharger votre compte.
-                          </div>
-                        )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const unpaid = getUnpaidInvoiceObject();
+                        setPaymentInvoiceObj(unpaid);
+                        setShowPaymentModal(true);
+                      }}
+                      className="w-full min-h-[56px] rounded-2xl bg-gradient-to-br from-[#059669] to-[#0e7490] text-white font-black text-base shadow-lg hover:shadow-xl hover:brightness-[1.03] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Zap className="w-5 h-5 fill-white" />
+                      Payer maintenant ({(totalXOF ?? 0).toLocaleString('fr-FR')} FCFA)
+                    </button>
+
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="text-center rounded-xl bg-white border border-gray-100 p-2">
+                        <Wallet className="w-4 h-4 mx-auto text-[#00D26A] mb-1" />
+                        <p className="text-[10px] font-black text-gray-800">Wallet</p>
                       </div>
-                    )}
-
-                    {/* Method: Lightning */}
-                    {selectedMethod === 'lightning' && (
-                      <div className="bg-slate-50 p-4 rounded-2xl border border-gray-100 space-y-4 text-center">
-                        {isFetchingInvoice ? (
-                          <div className="py-6 flex flex-col items-center justify-center gap-2">
-                            <RefreshCw className="w-6 h-6 text-[#059669] animate-spin" />
-                            <span className="text-xs font-bold text-gray-500 font-sans">Génération de la facture sécurisée Breez API...</span>
-                          </div>
-                        ) : (
-                          <>
-                            <div className="bg-white p-3.5 rounded-xl inline-block shadow-2xs border border-gray-100">
-                              {/* QR Code generating the lightning invoice */}
-                              <QRCodeSVG value={invoiceString || lightningInvoiceFallback} size={150} level="M" />
-                            </div>
-                            <p className="text-xs font-bold text-[#1C1C1E] font-sans">Scannez ce QR Code avec votre portefeuille Lightning (ex: Phoenix, Muun, Breez)</p>
-                            
-                            <div className="flex gap-2 justify-center">
-                              <button
-                                onClick={() => copyInvoiceText(invoiceString || lightningInvoiceFallback)}
-                                className="px-3 py-2 bg-white hover:bg-gray-100 border border-gray-200 rounded-xl text-xs font-sans text-gray-700 font-semibold flex items-center gap-1 transition-all cursor-pointer"
-                              >
-                                <Copy className="w-3.5 h-3.5" />
-                                {copiedText ? 'Copié !' : 'Copier l\'Invoice'}
-                              </button>
-                            </div>
-
-                            {satoshiBalance !== undefined && (
-                              <div className="pt-3 border-t border-gray-200/50 mt-3 text-center">
-                                <p className="text-[10px] text-gray-500 font-sans mb-1.5">
-                                  Portefeuille Santé+ Lightning connecté : <strong className="text-amber-600 font-mono">{(satoshiBalance ?? 0).toLocaleString('fr-FR')} Sats disponibles</strong>
-                                </p>
-                                <button
-                                  type="button"
-                                  onClick={handlePayWithLightningSats}
-                                  className="w-full py-2.5 px-4 bg-amber-500 hover:bg-amber-600 text-white font-sans font-extrabold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                                >
-                                  <Zap className="w-4 h-4 fill-white" />
-                                  Débiter mes Satoshis Réels (-{(totalSats ?? 0).toLocaleString('fr-FR')} Sats)
-                                </button>
-                              </div>
-                            )}
-
-                            <div className="flex items-center justify-center gap-2 text-[11px] font-semibold text-emerald-700 bg-emerald-50/80 py-2.5 px-4 rounded-xl animate-pulse mt-3 border border-emerald-100">
-                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                              <span>Réseau Lightning actif : En attente du règlement...</span>
-                            </div>
-                          </>
-                        )}
+                      <div className="text-center rounded-xl bg-white border border-gray-100 p-2">
+                        <MessageCircle className="w-4 h-4 mx-auto text-yellow-600 mb-1" />
+                        <p className="text-[10px] font-black text-gray-800">MTN / Moov</p>
                       </div>
-                    )}
-
-                    {/* Method: Family Help (WhatsApp Link + QR Code BOTH) */}
-                    {selectedMethod === 'family-help' && (
-                      <div className="bg-slate-50 p-5 rounded-2xl border border-gray-100 space-y-5">
-                        <div className="text-center space-y-2">
-                          <h4 className="text-xs font-bold uppercase text-amber-800 tracking-wider font-sans">Aide Familiale Santé+ active</h4>
-                          <p className="text-xs text-gray-500 font-sans">
-                            Conformément à la règle d'or, pas de cagnotte globale compliquée. Votre proche effectue un paiement direct pour cette facture spécifique en sats, libérant ainsi vos documents.
-                          </p>
-                        </div>
-
-                        {isFetchingInvoice ? (
-                          <div className="py-6 flex flex-col items-center justify-center gap-2">
-                            <RefreshCw className="w-6 h-6 text-[#FF8A00] animate-spin" />
-                            <span className="text-xs font-bold text-gray-500 font-sans">Génération de la facture sécurisée Breez API...</span>
-                          </div>
-                        ) : (
-                          <>
-                            {/* Dual Interface layout as requested: BOTH WA link + Visible QR */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-                              {/* Part 1: QR Code visible for immediate scanning if family member is close */}
-                              <div className="bg-white p-4 rounded-2xl border border-gray-100 flex flex-col items-center text-center space-y-2">
-                                <QRCodeSVG value={invoiceString || lightningInvoiceFallback} size={120} level="M" />
-                                <span className="text-[10px] font-sans text-gray-400 font-semibold uppercase tracking-wider">QR Code de Facturation</span>
-                                <span className="text-[11px] font-sans text-gray-600 leading-tight">À scanner sur place pour payer en Sats</span>
-                              </div>
-
-                              {/* Part 2: WhatsApp Link Sharing */}
-                              <div className="space-y-3">
-                                <div className="p-3 bg-white border border-gray-100 rounded-xl">
-                                  <p className="text-[10px] text-gray-400 uppercase font-sans font-bold">Message généré :</p>
-                                  <p className="text-[11px] text-gray-600 font-sans line-clamp-3 mt-1 italic">
-                                    "{shareMessage}"
-                                  </p>
-                                </div>
-
-                                <a
-                                  href={whatsappUrl}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="w-full py-2.5 px-3 bg-[#00D26A] hover:bg-[#00D26A]/90 text-white font-bold rounded-xl text-xs font-sans flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer text-center"
-                                >
-                                  <MessageCircle className="w-4 h-4 fill-current" />
-                                  Partager par WhatsApp
-                                </a>
-
-                                <button
-                                  onClick={() => copyInvoiceText(shareMessage)}
-                                  className="w-full py-2 bg-white hover:bg-gray-100 border border-gray-200 rounded-xl text-xs font-sans text-gray-700 font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer"
-                                >
-                                  <Copy className="w-3.5 h-3.5 mr-1" />
-                                  {copiedText ? 'Message copié !' : 'Copier le message et lien'}
-                                </button>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center justify-center gap-2 text-[11px] font-semibold text-amber-700 bg-amber-50/80 py-2.5 px-4 rounded-xl animate-pulse border border-amber-200">
-                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                              <span>En attente du règlement par votre proche...</span>
-                            </div>
-
-                            {satoshiBalance !== undefined && (
-                              <div className="pt-3 border-t border-gray-200/50 mt-3 text-center">
-                                <p className="text-[10px] text-gray-500 font-sans mb-1.5 font-semibold">
-                                  Ou réglez instantanément avec vos Satoshis connectés : <strong className="text-amber-600 font-mono">{(satoshiBalance ?? 0).toLocaleString('fr-FR')} Sats</strong>
-                                </p>
-                                <button
-                                  type="button"
-                                  onClick={handlePayWithLightningSats}
-                                  className="w-full py-2.5 px-4 bg-amber-500 hover:bg-amber-600 text-white font-sans font-extrabold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                                >
-                                  <Zap className="w-4 h-4 fill-white" />
-                                  Payer moi-même en Sats (-{(totalSats ?? 0).toLocaleString('fr-FR')} Sats)
-                                </button>
-                              </div>
-                            )}
-                          </>
-                        )}
+                      <div className="text-center rounded-xl bg-white border border-gray-100 p-2">
+                        <Zap className="w-4 h-4 mx-auto text-orange-500 fill-orange-400 mb-1" />
+                        <p className="text-[10px] font-black text-gray-800">Lightning</p>
                       </div>
-                    )}
+                    </div>
 
-                    {/* Placeholder when nothing is selected */}
-                    {selectedMethod === 'none' && (
-                      <p className="text-xs text-gray-400 text-center font-sans py-4">
-                        Sélectionnez une option de paiement ci-dessus pour continuer.
-                      </p>
-                    )}
+                    <p className="text-[11px] font-bold text-center text-gray-500">
+                      Wallet Santé+ · MTN MoMo · Moov Money · Celtiis · Lightning Bitcoin
+                    </p>
                   </>
+                )}
+
+                {/* Section héritée Family Help — accessible directement */}
+                {selectedMethod === 'family-help' && (
+                  <div className="bg-slate-50 p-5 rounded-2xl border border-gray-100 space-y-4 mt-3">
+                    <div className="text-center space-y-2">
+                      <h4 className="text-xs font-bold uppercase text-amber-800 tracking-wider font-sans">
+                        Aide Familiale Santé+
+                      </h4>
+                      <p className="text-xs text-gray-500 font-sans">
+                        Partagez ce paiement avec un proche par WhatsApp ou QR Code.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+                      <div className="bg-white p-4 rounded-2xl border border-gray-100 flex flex-col items-center">
+                        <QRCodeSVG
+                          value={invoiceString || lightningInvoiceFallback}
+                          size={110}
+                          level="M"
+                        />
+                        <span className="text-[10px] text-gray-500 font-bold mt-2 uppercase tracking-wider">
+                          QR proche
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        <a
+                          href={whatsappUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="w-full py-2.5 bg-[#00D26A] hover:bg-[#00D26A]/90 text-white font-bold rounded-xl text-xs font-sans flex items-center justify-center gap-1.5 cursor-pointer text-center"
+                        >
+                          <MessageCircle className="w-4 h-4 fill-current" />
+                          Partager par WhatsApp
+                        </a>
+                        <button
+                          onClick={() => copyInvoiceText(shareMessage)}
+                          className="w-full py-2 bg-white hover:bg-gray-100 border border-gray-200 rounded-xl text-xs font-sans text-gray-700 font-semibold flex items-center justify-center gap-1 cursor-pointer"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                          {copiedText ? 'Message copié !' : 'Copier le message'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Family Help CTA */}
+                {selectedMethod !== 'family-help' && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedMethod('family-help')}
+                    className="w-full min-h-[48px] rounded-2xl bg-amber-50 border-2 border-amber-200 text-amber-900 font-black text-sm hover:bg-amber-100 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Share2 className="w-4 h-4" />
+                    Demander de l'aide à un proche
+                  </button>
                 )}
               </div>
             </motion.div>
@@ -1103,6 +1074,50 @@ Statut: CERTIFIÉ PAYÉ (OFFLINE STAMP - BLOCKCHAIN BÉNIN)`}
 
         </AnimatePresence>
       </div>
+
+      {/* MODALE DE PAIEMENT UNIFIÉE V3 */}
+      <InvoicePaymentModal
+        open={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        invoice={paymentInvoiceObj}
+        currentBalanceXof={walletBalance}
+        patientPhone={patientPhone}
+        onPaid={(updatedInvoice, newBalanceXof) => {
+          setShowPaymentModal(false);
+          if (typeof newBalanceXof === 'number') {
+            setWalletBalance(newBalanceXof);
+          }
+          const inv: Invoice =
+            updatedInvoice && (updatedInvoice as any).id
+              ? (updatedInvoice as Invoice)
+              : {
+                  id: (updatedInvoice as any)?.id || `FACT-${Math.floor(100000 + Math.random() * 900000)}`,
+                  patientName,
+                  patientPhone,
+                  hospitalName: hospital.name,
+                  hospitalAddress: hospital.address,
+                  date: new Date().toLocaleDateString('fr-FR', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  }),
+                  items: safeDocItems,
+                  totalXOF,
+                  totalSats,
+                  paymentMethod: (updatedInvoice as any)?.paymentMethod || 'Wallet',
+                  txHash: (updatedInvoice as any)?.txHash || '0x' + Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join(''),
+                  isPaid: true,
+                  doctorName: getDoctorName(hospital.id),
+                  status: 'PAID',
+                  paidAt: new Date().toISOString(),
+                };
+          setInvoice(inv);
+          setStep('success');
+          onPaymentComplete(inv);
+        }}
+      />
       
       {/* Hidden Canvas for QR Code embedding in jsPDF */}
       <div className="hidden">

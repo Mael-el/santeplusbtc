@@ -12,9 +12,10 @@ import authRoutes from "./backend/routes/auth.routes";
 import patientRoutes from "./backend/routes/patient.routes";
 import hospitalAdminRoutes from "./backend/routes/hospital.routes";
 import paymentRoutes from "./backend/routes/payment.routes";
+import paymentV3Routes from "./backend/routes/payment.v3.routes";
+import { paymentService } from "./backend/services/payment.service";
 import doctorRoutes from "./backend/routes/doctor.routes";
 import bloodRoutes from "./backend/routes/blood.routes";
-import tontineRoutes from "./backend/routes/tontine.routes";
 import notificationRoutes from "./backend/routes/notification.routes";
 import auditRoutes from "./backend/routes/audit.routes";
 import blockchainRoutes from "./backend/routes/blockchain.routes";
@@ -414,19 +415,33 @@ async function startServer() {
     }
     const lightningProvider = (process.env.LIGHTNING_PROVIDER || 'lnbits').toLowerCase();
     const lightningKey = lightningProvider === 'lnbits' ? process.env.LNBITS_API_KEY : process.env.LIGHTNING_API_KEY;
-    const fiatProvider = (process.env.FIAT_PROVIDER || 'fedapay').toLowerCase();
-    const fiatKey = fiatProvider === 'fedapay'
+    const aggregator = (process.env.AGGREGATOR_CHOICE || process.env.FIAT_PROVIDER || 'fedapay').toLowerCase();
+    const allowedAggregators = ['cinetpay', 'kkiapay', 'feexpay', 'fedapay', 'izichange'];
+    if (!allowedAggregators.includes(aggregator)) missing.push('AGGREGATOR_CHOICE');
+    const fiatKey = aggregator === 'fedapay'
       ? process.env.FEDAPAY_SECRET_KEY
-      : fiatProvider === 'kkiapay'
+      : aggregator === 'kkiapay'
         ? process.env.KKIAPAY_PRIVATE_KEY
-        : process.env.IZICHANGE_API_KEY;
+        : aggregator === 'cinetpay'
+          ? process.env.CINETPAY_API_KEY
+          : aggregator === 'feexpay'
+            ? process.env.FEEXPAY_API_KEY
+            : process.env.IZICHANGE_API_KEY;
+    const webhookSecret = aggregator === 'fedapay'
+      ? process.env.FEDAPAY_WEBHOOK_SECRET
+      : aggregator === 'kkiapay'
+        ? process.env.KKIAPAY_WEBHOOK_SECRET || process.env.KKIAPAY_PRIVATE_KEY
+        : aggregator === 'cinetpay'
+          ? process.env.CINETPAY_WEBHOOK_SECRET
+          : aggregator === 'feexpay'
+            ? process.env.FEEXPAY_WEBHOOK_SECRET
+            : undefined;
     if (!['lnbits', 'breez', 'izichange'].includes(lightningProvider)) missing.push('LIGHTNING_PROVIDER');
-    if (!['fedapay', 'kkiapay', 'izichange'].includes(fiatProvider)) missing.push('FIAT_PROVIDER');
     if (lightningKey?.trim() && lightningProvider !== 'lnbits' && !process.env.LIGHTNING_API_URL?.trim()) {
       missing.push('LIGHTNING_API_URL');
     }
-    if (fiatKey?.trim() && fiatProvider !== 'fedapay' && !process.env.FIAT_API_URL?.trim()) {
-      missing.push('FIAT_API_URL');
+    if (aggregator === 'cinetpay' && fiatKey?.trim() && !process.env.CINETPAY_SITE_ID?.trim()) {
+      missing.push('CINETPAY_SITE_ID');
     }
     if (missing.length > 0) {
       throw new Error(`Missing production configuration: ${missing.join(', ')}`);
@@ -533,7 +548,9 @@ async function startServer() {
       services: {
         lightning: lightningService.isConfigured() ? 'live' : 'sandbox',
         ipfs: ipfsService.isConfigured() ? 'pinata' : 'local_ipfs',
-        mobileMoney: 'active'
+        mobileMoney: 'active',
+        aggregator: (process.env.AGGREGATOR_CHOICE || process.env.FIAT_PROVIDER || 'sandbox').toLowerCase(),
+        mobileMoneyProvider: momoService.aggregatorChoice,
       }
     });
   });
@@ -567,12 +584,263 @@ async function startServer() {
   app.use('/api/payments-v2', paymentRoutes);
   app.use('/api/doctors', doctorRoutes);
   app.use('/api/blood', bloodRoutes);
-  app.use('/api/tontines', tontineRoutes);
   app.use('/api/notifications', notificationRoutes);
   app.use('/api/audit', auditRoutes);
   app.use('/api/blockchain', blockchainRoutes);
   app.use('/api/ai', aiRoutes);
   app.use('/api/ipfs', ipfsRoutes);
+
+  app.use('/api', paymentV3Routes);
+
+  // ==========================================================================
+  // WEBHOOKS UNIFIÉS MOBILE MONEY (CinetPay, Kkiapay, FeexPay, FedaPay)
+  // Signature HMAC + idempotence via payment_webhook_events + paymentService
+  // ==========================================================================
+  app.post('/api/webhooks/mobile-money', async (req, res) => {
+    const provider = (String(req.query.provider || '').toLowerCase() || momoService.aggregatorChoice) as any;
+    const allowedProviders = ['cinetpay', 'kkiapay', 'feexpay', 'fedapay', 'izichange', 'sandbox'];
+    const normalizedProvider = allowedProviders.includes(provider) ? provider : momoService.aggregatorChoice;
+    const signatureHeader =
+      req.headers['x-cinetpay-signature'] ||
+      req.headers['x-kkiapay-signature'] ||
+      req.headers['x-feexpay-signature'] ||
+      req.headers['x-fedapay-signature'] ||
+      req.headers['x-izichange-signature'] ||
+      req.headers['x-webhook-signature'] ||
+      req.headers['signature'];
+    const rawBody = (req as any).rawBody;
+    const signatureValid = momoService.verifyWebhookSignature(
+      normalizedProvider,
+      rawBody || Buffer.from(JSON.stringify(req.body || {})),
+      typeof signatureHeader === 'string' ? signatureHeader : undefined
+    );
+    const body: any = req.body || {};
+    const transactionId =
+      body?.transaction_id ||
+      body?.transactionId ||
+      body?.cpm_trans_id ||
+      body?.cpm_custom ||
+      body?.id ||
+      body?.reference ||
+      body?.order_id ||
+      body?.checking_id;
+    const statusRaw = String(
+      body?.status || body?.code || body?.payment_status || body?.state || body?.event || 'UNKNOWN'
+    ).toUpperCase();
+    const isSuccess =
+      statusRaw.includes('SUCCESS') ||
+      statusRaw.includes('ACCEPTED') ||
+      statusRaw.includes('COMPLETED') ||
+      statusRaw.includes('PAID') ||
+      statusRaw.includes('00') ||
+      statusRaw === 'APPROVED';
+    const isFailed =
+      statusRaw.includes('FAILED') ||
+      statusRaw.includes('REFUSED') ||
+      statusRaw.includes('REJECTED') ||
+      statusRaw.includes('CANCELLED') ||
+      statusRaw.includes('02') ||
+      statusRaw === 'DECLINED';
+    const amountRaw = Number(
+      body?.amount || body?.order_amount || body?.currency_amount || body?.total_amount || 0
+    );
+    const amountXof = Number.isFinite(amountRaw) && amountRaw > 0 ? Math.floor(amountRaw) : 0;
+
+    // Journaliser l'événement webhook (idempotent via UNIQUE provider+payload_hash)
+    try {
+      await recordWebhookEvent(
+        normalizedProvider,
+        body,
+        rawBody,
+        signatureValid,
+        false,
+        undefined
+      );
+    } catch { /* ignore duplicate log */ }
+
+    if (!signatureValid && process.env.NODE_ENV === 'production') {
+      try {
+        await recordWebhookEvent(
+          normalizedProvider,
+          body,
+          rawBody,
+          false,
+          false,
+          'Invalid HMAC signature in production'
+        );
+      } catch { /* ignore */ }
+      return res.status(403).json({ success: false, error: 'Signature invalide' });
+    }
+
+    if (!transactionId || amountXof <= 0) {
+      return res.status(200).json({ received: true, processed: false, reason: 'Missing fields' });
+    }
+
+    const externalStatus: 'SUCCESS' | 'FAILED' = isSuccess ? 'SUCCESS' : isFailed ? 'FAILED' : 'SUCCESS';
+    let processed = false;
+    let errorMessage: string | undefined;
+
+    // Double-check via API agrégateur si disponible
+    if (isSuccess && dbService.getStatus().connected) {
+      try {
+        const verify = await momoService.verifyPaymentStatus(
+          normalizedProvider,
+          String(body?.cpm_trans_id || body?.id || body?.reference || String(transactionId)),
+          String(transactionId)
+        );
+        if (verify.status === 'FAILED') {
+          errorMessage = 'Double-check API a refusé la transaction';
+        } else if (verify.amount && verify.amount !== amountXof && process.env.NODE_ENV !== 'test') {
+          errorMessage = `Montant mismatch API verify ${verify.amount} vs ${amountXof}`;
+        }
+      } catch (err: any) {
+        if (process.env.NODE_ENV === 'production') {
+          console.warn('[Webhook MoMo] Double-check échec:', err.message);
+        }
+      }
+    }
+
+    if (dbService.getStatus().connected && !errorMessage) {
+      try {
+        // 1. Essayer recharge wallet
+        const confirmResult = await paymentService.confirmRechargeByTransactionId({
+          transactionId: String(transactionId),
+          amountXof,
+          externalStatus,
+          provider: normalizedProvider === 'sandbox' ? 'sandbox' : 'mtn',
+        });
+        if (confirmResult.success) {
+          processed = true;
+        }
+      } catch (err: any) {
+        // 2. Sinon essayer paiement facture
+        try {
+          const invResult = await paymentService.confirmInvoicePayment({
+            transactionId: String(transactionId),
+            amountXof,
+            externalStatus,
+            method: 'mobile_money',
+            provider: normalizedProvider === 'sandbox' ? 'sandbox' : 'mtn',
+          });
+          if (invResult.success) {
+            processed = true;
+          }
+        } catch (err2: any) {
+          errorMessage = `Aucune recharge/facture trouvée: ${err.message} / ${err2.message}`;
+        }
+      }
+
+      try {
+        const serializedPayload = rawBody || Buffer.from(JSON.stringify(body || {}));
+        const payloadHash = crypto.createHash('sha256').update(serializedPayload).digest('hex');
+        const eventReference = transactionId ? String(transactionId) : null;
+        await dbService.query(
+          `UPDATE payment_webhook_events
+             SET processed = $1, error_message = COALESCE($2, error_message)
+           WHERE provider = $3 AND payload_hash = $4`,
+          [processed, errorMessage || null, normalizedProvider, payloadHash]
+        );
+      } catch { /* ignore */ }
+    }
+
+    // Retour 200 immédiatement indépendamment du traitement (éviter retries agrégateur)
+    return res.status(200).json({
+      received: true,
+      processed,
+      provider: normalizedProvider,
+      transactionId,
+      status: externalStatus,
+      amountXof,
+    });
+  });
+
+  // ==========================================================================
+  // WEBHOOK UNIFIÉ LIGHTNING (LNbits / Breez / Izichange)
+  // ==========================================================================
+  app.post('/api/webhooks/lightning', async (req, res) => {
+    const signatureHeader =
+      req.headers['x-lnbits-signature'] ||
+      req.headers['x-webhook-signature'] ||
+      req.headers['signature'];
+    const rawBody = (req as any).rawBody;
+    const signatureValid = lightningService.verifyWebhookSignature(
+      rawBody || Buffer.from(JSON.stringify(req.body || {})),
+      typeof signatureHeader === 'string' ? signatureHeader : undefined
+    );
+    const body: any = req.body || {};
+    const paymentHash =
+      body?.payment_hash || body?.paymentHash || body?.checking_id || body?.hash || body?.id;
+    const amountMsats = Number(body?.amount || body?.amount_msat || body?.amountSats || 0);
+    const amountSats = amountMsats > 1e5 ? Math.floor(amountMsats / 1000) : Math.floor(amountMsats);
+    const amountXof = Math.max(1, Math.round(amountSats / 1.666));
+    const isPaid =
+      body?.paid === true ||
+      body?.settled === true ||
+      body?.status === 'paid' ||
+      String(body?.status || '').toUpperCase() === 'COMPLETED' ||
+      typeof body?.preimage === 'string';
+
+    try {
+      await recordWebhookEvent('lnbits', body, rawBody, signatureValid, false, undefined);
+    } catch { /* ignore duplicate */ }
+
+    if (!signatureValid && process.env.NODE_ENV === 'production') {
+      return res.status(403).json({ success: false, error: 'Signature Lightning invalide' });
+    }
+    if (!paymentHash) {
+      return res.status(200).json({ received: true, processed: false, reason: 'Missing payment_hash' });
+    }
+
+    const externalStatus: 'SUCCESS' | 'FAILED' = isPaid ? 'SUCCESS' : 'FAILED';
+    let processed = false;
+    let errorMessage: string | undefined;
+
+    if (dbService.getStatus().connected) {
+      try {
+        const r1 = await paymentService.confirmRechargeByTransactionId({
+          paymentHash: String(paymentHash),
+          amountXof,
+          externalStatus,
+          provider: 'lnbits',
+        });
+        if (r1.success) processed = true;
+      } catch (errA: any) {
+        try {
+          const r2 = await paymentService.confirmInvoicePayment({
+            paymentHash: String(paymentHash),
+            amountXof,
+            externalStatus,
+            method: 'lightning',
+            provider: 'lnbits',
+          });
+          if (r2.success) processed = true;
+        } catch (errB: any) {
+          errorMessage = `Lightning webhook: ${errA.message} / ${errB.message}`;
+        }
+      }
+
+      try {
+        const serializedPayload = rawBody || Buffer.from(JSON.stringify(body || {}));
+        const payloadHash = crypto.createHash('sha256').update(serializedPayload).digest('hex');
+        const eventReference = String(paymentHash);
+        await dbService.query(
+          `UPDATE payment_webhook_events
+             SET processed = $1, error_message = COALESCE($2, error_message)
+           WHERE provider = 'lnbits' AND payload_hash = $3`,
+          [processed, errorMessage || null, payloadHash]
+        );
+      } catch { /* ignore */ }
+    }
+
+    return res.status(200).json({
+      received: true,
+      processed,
+      paymentHash,
+      amountXof,
+      amountSats,
+      status: externalStatus,
+    });
+  });
 
   // 1. GET ALL HOSPITALS
   app.get("/api/hospitals", (req, res) => {

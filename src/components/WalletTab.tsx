@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { QRCodeSVG, QRCodeCanvas } from 'qrcode.react';
 import { jsPDF } from 'jspdf';
 import { Banner } from 'orbit-design-system';
+import RechargeWalletModal from './Wallet/RechargeWalletModal';
 
 interface WalletTabProps {
   balance: number;
@@ -52,10 +53,10 @@ export default function WalletTab({
   notifications = []
 }: WalletTabProps) {
   
-  // Active sub-modal states for the 9 cards
+  // Active sub-modal states for the 8 cards (Tontine retirée)
   const [activeModal, setActiveModal] = useState<
     'qr' | 'medical-record' | 'prescriptions' | 'payments' | 
-    'tontine' | 'appointments' | 'blood' | 'topup' | null
+    'appointments' | 'blood' | 'topup' | null
   >(null);
   const [prescriptionTab, setPrescriptionTab] = useState<'active' | 'history' | 'renewable'>('active');
   const [medicalTab, setMedicalTab] = useState<'all' | 'consultations' | 'prescriptions' | 'analyses' | 'exams' | 'blood' | 'vaccines'>('all');
@@ -72,15 +73,6 @@ export default function WalletTab({
 
   // Selected document for view/print
   const [selectedDoc, setSelectedDoc] = useState<MedicalDocument | null>(null);
-
-  // --- TONTINE CITOYENNE & SOLIDARITÉ SANTÉ ---
-  const [tontinesList, setTontinesList] = useState<any[]>([]);
-  const [tontineLoading, setTontineLoading] = useState(false);
-  const [tontineSuccessMsg, setTontineSuccessMsg] = useState<string | null>(null);
-  const [showCreateTontine, setShowCreateTontine] = useState(false);
-  const [tontineTab, setTontineTab] = useState<'groups' | 'join' | 'create'>('groups');
-  const [newTontineName, setNewTontineName] = useState('');
-  const [newTontineContrib, setNewTontineContrib] = useState('10000');
 
   // --- DON DE SANG CITOYEN ---
   const [bloodStatus, setBloodStatus] = useState<any>({
@@ -102,26 +94,9 @@ export default function WalletTab({
   const qrIdentity = patientUser?.qrCodeHash || npi;
   const qrValue = `SANTE-PLUS-BENIN:NPI=${npi};PATIENT=${fullName};BLOOD=${bloodGroup};QR_HASH=${qrIdentity}`;
 
-  // Synchronisation avec les APIs backend Tontines & Don de Sang
+  // Synchronisation avec les APIs backend Don de Sang
   useEffect(() => {
-    if (activeModal === 'tontine') {
-      const fetchTontines = async () => {
-        try {
-          const res = await fetch('/api/tontines', {
-            credentials: 'include'
-          });
-          if (res.ok) {
-            const data = await res.json();
-            if (data.success && Array.isArray(data.data) && data.data.length > 0) {
-              setTontinesList(data.data);
-            }
-          }
-        } catch {
-          // Fallback silencieux sur le dataset local
-        }
-      };
-      fetchTontines();
-    } else if (activeModal === 'blood') {
+    if (activeModal === 'blood') {
       const fetchBlood = async () => {
         try {
           const [statusRes, histRes] = await Promise.all([
@@ -143,64 +118,6 @@ export default function WalletTab({
       fetchBlood();
     }
   }, [activeModal]);
-
-  const handleContributeTontine = async (tontineId: string, amount: number) => {
-    if (balance < amount) {
-      alert(`Solde insuffisant (${balance.toLocaleString()} FCFA). Veuillez recharger votre portefeuille Santé.`);
-      return;
-    }
-    setTontineLoading(true);
-    try {
-      await fetch(`/api/tontines/${tontineId}/contribute`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ amount })
-      });
-      setBalance(prev => Math.max(0, prev - amount));
-      setTontinesList(prev => prev.map(t => t.id === tontineId ? { ...t, totalSavings: (t.totalSavings || 0) + amount } : t));
-      setTontineSuccessMsg(`Contribution de ${amount.toLocaleString()} FCFA enregistrée avec succès !`);
-      setTimeout(() => setTontineSuccessMsg(null), 4000);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setTontineLoading(false);
-    }
-  };
-
-  const handleCreateNewTontine = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTontineName.trim()) return;
-    setTontineLoading(true);
-    try {
-      const res = await fetch('/api/tontines', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: newTontineName,
-          description: 'Cagnotte de santé familiale créée par ' + fullName,
-          monthlyContribution: Number(newTontineContrib) || 10000
-        })
-      });
-      const data = await res.json();
-      if (data.success && data.data) {
-        setTontinesList(prev => [data.data, ...prev]);
-        setShowCreateTontine(false);
-        setNewTontineName('');
-        setTontineSuccessMsg(`Tontine "${data.data.name}" créée avec succès !`);
-        setTimeout(() => setTontineSuccessMsg(null), 4000);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setTontineLoading(false);
-    }
-  };
 
   const handleDonateBlood = async () => {
     setBloodDonating(true);
@@ -266,7 +183,7 @@ export default function WalletTab({
 
   // Trigger audio summary of the 9 cards
   const handleReadDashboard = () => {
-    const summary = `Bonjour ${userName}. Votre solde est de ${balance.toLocaleString('fr-FR')} Francs CFA. Vous avez 9 services disponibles : Mon QR Code pour vous identifier à l'hôpital, votre Dossier Médical, vos Ordonnances avec une nouvelle prescription, vos Paiements de soins, votre Tontine Santé, vos Rendez-vous prévus, la liste des Hôpitaux, le Don de Sang avec votre groupe ${bloodGroup}, et votre Profil personnel. Touchez n'importe quelle carte pour l'ouvrir.`;
+    const summary = `Bonjour ${userName}. Votre solde est de ${balance.toLocaleString('fr-FR')} Francs CFA. Vous avez 8 services disponibles : Mon QR Code pour vous identifier à l'hôpital, votre Dossier Médical, vos Ordonnances avec une nouvelle prescription, vos Paiements de soins, vos Rendez-vous prévus, la liste des Hôpitaux, le Don de Sang avec votre groupe ${bloodGroup}, et votre Profil personnel. Touchez n'importe quelle carte pour l'ouvrir.`;
     speakText(summary);
   };
 
@@ -512,23 +429,7 @@ export default function WalletTab({
           </div>
         </div>
 
-        {/* CARD 5: TONTINE SANTÉ */}
-        <div 
-          onClick={() => setActiveModal('tontine')}
-          className="stagger-item sante-card p-3 bg-white flex flex-col justify-between min-h-[104px] sm:h-[112px] cursor-pointer group hover:border-amber-400 hover:shadow-md"
-        >
-          <div className="flex items-start justify-between">
-            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center font-black text-lg shadow-xs group-hover:scale-105 transition-transform">
-              ₿
-            </div>
-            <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-amber-600 group-hover:translate-x-1 transition-all" />
-          </div>
-          <div>
-            <h3 className="text-[15px] font-black text-slate-900 font-sans">Tontine Santé</h3>
-          </div>
-        </div>
-
-        {/* CARD 6: RENDEZ-VOUS */}
+        {/* CARD 5: RENDEZ-VOUS */}
         <div 
           onClick={() => setActiveModal('appointments')}
           className="stagger-item sante-card p-3 bg-white flex flex-col justify-between min-h-[104px] sm:h-[112px] cursor-pointer group hover:border-emerald-500 hover:shadow-md"
@@ -546,7 +447,7 @@ export default function WalletTab({
           </div>
         </div>
 
-        {/* CARD 7: HÔPITAUX */}
+        {/* CARD 6: HÔPITAUX */}
         <div 
           onClick={() => {
             if (onNavigateToMap) onNavigateToMap();
@@ -565,7 +466,7 @@ export default function WalletTab({
           </div>
         </div>
 
-        {/* CARD 8: DON DE SANG */}
+        {/* CARD 7: DON DE SANG */}
         <div 
           onClick={() => setActiveModal('blood')}
           className="stagger-item sante-card p-3 bg-white flex flex-col justify-between min-h-[104px] sm:h-[112px] cursor-pointer group hover:border-red-500 hover:shadow-md"
@@ -583,7 +484,7 @@ export default function WalletTab({
           </div>
         </div>
 
-        {/* CARD 9: MON PROFIL */}
+        {/* CARD 8: MON PROFIL */}
         <div 
           onClick={() => {
             if (onOpenProfile) onOpenProfile();
@@ -845,168 +746,6 @@ export default function WalletTab({
       </AnimatePresence>
 
       {/* ---------------------------------------------------- */}
-      {/* MODAL 4: TONTINE SANTÉ ÉPARGNE                       */}
-      {/* ---------------------------------------------------- */}
-      <AnimatePresence>
-        {activeModal === 'tontine' && (
-          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
-            >
-              <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-base">₿</div>
-                  <div>
-                    <h3 className="text-base sm:text-lg font-black text-gray-900 leading-none">Tontines Santé & Solidarité</h3>
-                    <span className="text-[11px] text-gray-500 font-medium">Épargne communautaire certifiée Bénin</span>
-                  </div>
-                </div>
-                <button onClick={() => setActiveModal(null)} className="text-gray-400 hover:text-gray-700 p-1 cursor-pointer"><X className="w-5 h-5" /></button>
-              </div>
-
-              {tontineSuccessMsg && (
-                <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>{tontineSuccessMsg}</span>
-                </div>
-              )}
-
-              {/* Toggle Vue Tontines / Création */}
-              <div className="grid grid-cols-3 gap-1 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-1.5 text-xs font-bold">
-                <button
-                  onClick={() => { setShowCreateTontine(false); setTontineTab('groups'); }}
-                  className={`min-h-[44px] rounded-xl cursor-pointer transition-all ${tontineTab === 'groups' ? 'bg-emerald-600 text-white shadow-xs' : 'text-emerald-800 hover:bg-white'}`}
-                >
-                  Mes groupes
-                </button>
-                <button
-                  onClick={() => { setShowCreateTontine(false); setTontineTab('join'); }}
-                  className={`min-h-[44px] rounded-xl cursor-pointer transition-all ${tontineTab === 'join' ? 'bg-emerald-600 text-white shadow-xs' : 'text-emerald-800 hover:bg-white'}`}
-                >
-                  Rejoindre
-                </button>
-                <button
-                  onClick={() => { setShowCreateTontine(true); setTontineTab('create'); }}
-                  className={`min-h-[44px] rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1.5 ${tontineTab === 'create' ? 'bg-emerald-600 text-white shadow-xs' : 'text-emerald-800 hover:bg-white'}`}
-                >
-                  <Plus className="w-3.5 h-3.5" /> Créer
-                </button>
-              </div>
-
-              {tontineTab === 'groups' ? (
-                <div className="space-y-3">
-                  {tontinesList.map((tontine) => (
-                    <div key={tontine.id} className="rounded-[32px_32px_8px_32px] bg-emerald-50/60 border border-emerald-100 p-4 space-y-3 shadow-sm">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <h4 className="font-black text-emerald-950 text-base">{tontine.name}</h4>
-                          <p className="text-xs text-emerald-700 line-clamp-1">{tontine.description}</p>
-                        </div>
-                        <span className="px-2 py-0.5 bg-white text-emerald-800 rounded-full text-[10px] font-extrabold uppercase">
-                          Actif
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2 bg-white/80 p-2.5 rounded-xl border border-emerald-100 text-xs">
-                        <div>
-                          <span className="text-[10px] text-emerald-600 block uppercase font-bold">Solde total</span>
-                          <strong className="text-emerald-950 text-sm">{Number(tontine.totalSavings || 0).toLocaleString()} FCFA</strong>
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-emerald-600 block uppercase font-bold">Cotisation / mois</span>
-                          <strong className="text-emerald-800 text-sm">{Number(tontine.monthlyContribution || 10000).toLocaleString()} FCFA</strong>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between text-[11px] text-gray-500">
-                        <span className="flex items-center gap-1">
-                          <Users className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>{tontine.members || 1} membres actifs</span>
-                        </span>
-                        <span className="text-emerald-700 font-bold">Déblocage urgence immédiat</span>
-                      </div>
-
-                      <button
-                        onClick={() => handleContributeTontine(tontine.id, Number(tontine.monthlyContribution) || 10000)}
-                        disabled={tontineLoading}
-                        className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-all shadow-xs disabled:opacity-50"
-                      >
-                        <Zap className="w-3.5 h-3.5" />
-                        <span>Cotiser {(Number(tontine.monthlyContribution) || 10000).toLocaleString()} FCFA</span>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ) : tontineTab === 'create' ? (
-                <form onSubmit={handleCreateNewTontine} className="space-y-3.5">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Nom de la Tontine Familiale / Communautaire</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Ex: Tontine Familiale Dossou"
-                      value={newTontineName}
-                      onChange={(e) => setNewTontineName(e.target.value)}
-                      className="w-full h-10 px-3 border border-emerald-200 rounded-xl text-xs focus:border-emerald-500 focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Cotisation Mensuelle Souhaitée (FCFA)</label>
-                    <select
-                      value={newTontineContrib}
-                      onChange={(e) => setNewTontineContrib(e.target.value)}
-                      className="w-full h-10 px-3 border border-emerald-200 rounded-xl text-xs focus:border-emerald-500 focus:outline-none"
-                    >
-                      <option value="5000">5 000 FCFA / mois</option>
-                      <option value="10000">10 000 FCFA / mois</option>
-                      <option value="25000">25 000 FCFA / mois</option>
-                      <option value="50000">50 000 FCFA / mois</option>
-                    </select>
-                  </div>
-
-                  <p className="text-xs text-emerald-700 bg-emerald-50 p-3 rounded-xl border border-emerald-100">
-                    Les fonds sont conservés de manière transparente et peuvent être débloqués immédiatement vers n'importe quelle clinique conventionnée en cas de sinistre ou d'urgence.
-                  </p>
-
-                  <button
-                    type="submit"
-                    disabled={tontineLoading || !newTontineName.trim()}
-                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer shadow-sm disabled:opacity-50"
-                  >
-                    <PlusCircle className="w-4 h-4" />
-                    <span>Créer et Activer la Tontine</span>
-                  </button>
-                </form>
-              ) : (
-                <div className="space-y-3 rounded-[32px_32px_8px_32px] border border-emerald-100 bg-emerald-50/60 p-4">
-                  <p className="text-sm font-black text-emerald-950">Rejoindre une tontine</p>
-                  <p className="text-xs text-emerald-700">Saisissez le code d’invitation transmis par votre groupe familial ou communautaire.</p>
-                  <input placeholder="Code d’invitation" className="w-full rounded-xl border border-emerald-200 bg-white px-3 py-3 text-sm outline-none focus:border-emerald-500" />
-                  <button type="button" onClick={() => setTontineSuccessMsg('Votre demande de rejoindre le groupe a été envoyée.')} className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-black text-white hover:bg-emerald-700">Envoyer ma demande</button>
-                </div>
-              )}
-
-              <div className="rounded-2xl border border-emerald-100 bg-white p-4 breathe-signature"><p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">Sécurité</p><p className="mt-1 text-sm font-bold text-emerald-950">Multi-signatures 2-of-3</p><p className="mt-1 text-xs text-emerald-700">Transactions horodatées et vérifiables sur Bitcoin.</p></div>
-
-              <button
-                onClick={() => {
-                  speakText(`Vous avez accès à ${tontinesList.length} tontines santé. Les fonds épargnés permettent de couvrir instantanément les ordonnances et soins de votre famille en cas d'urgence.`);
-                }}
-                className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-gray-700 font-bold rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors"
-              >
-                <Volume2 className="w-3.5 h-3.5 text-amber-700" />
-                <span>Écouter l'assistance vocale Tontine</span>
-              </button>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* ---------------------------------------------------- */}
       {/* MODAL 5: DON DE SANG CITOYEN                         */}
       {/* ---------------------------------------------------- */}
       <AnimatePresence>
@@ -1120,107 +859,23 @@ export default function WalletTab({
       </AnimatePresence>
 
       {/* ---------------------------------------------------- */}
-      {/* MODAL 6: RECHARGE SOLDE WALLET                       */}
+      {/* MODAL 6: RECHARGE SOLDE WALLET (NOUVEAU FLUX V3)     */}
       {/* ---------------------------------------------------- */}
-      <AnimatePresence>
-        {activeModal === 'topup' && (
-          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5"
-            >
-              <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-                <h3 className="text-lg font-black text-gray-900">Recharger mon Compte Santé</h3>
-                <button onClick={() => setActiveModal(null)} className="text-gray-400 hover:text-gray-700 p-1 cursor-pointer"><X className="w-5 h-5" /></button>
-              </div>
-
-              {topUpSuccess ? (
-                <div className="p-6 bg-emerald-50 rounded-2xl text-center space-y-2">
-                  <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto" />
-                  <h4 className="font-bold text-sm text-emerald-900">Recharge validée avec succès !</h4>
-                  <p className="text-xs text-emerald-700">Votre solde a été mis à jour instantanément.</p>
-                </div>
-              ) : (
-                <form onSubmit={handleTopUpSubmit} className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                      Montant à créditer (FCFA)
-                    </label>
-                    <div className="grid grid-cols-3 gap-2 mb-2">
-                      {['2000', '5000', '15000'].map(amt => (
-                        <button
-                          key={amt}
-                          type="button"
-                          onClick={() => setTopUpAmount(amt)}
-                          className={`py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                            topUpAmount === amt ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-slate-50 border-gray-200'
-                          }`}
-                        >
-                          {parseInt(amt).toLocaleString('fr-FR')} F
-                        </button>
-                      ))}
-                    </div>
-                    <input
-                      type="number"
-                      value={topUpAmount}
-                      onChange={(e) => setTopUpAmount(e.target.value)}
-                      required
-                      min="500"
-                      className="w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-sm font-bold"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                      Moyen de Paiement Mobile
-                    </label>
-                    <div className="grid grid-cols-3 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setTopUpMethod('mtn')}
-                        className={`p-2.5 rounded-2xl border text-xs font-bold transition-all ${
-                          topUpMethod === 'mtn' ? 'bg-yellow-100 border-yellow-400 text-yellow-900' : 'bg-slate-50 border-gray-200'
-                        }`}
-                      >
-                        MTN MoMo
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setTopUpMethod('moov')}
-                        className={`p-2.5 rounded-2xl border text-xs font-bold transition-all ${
-                          topUpMethod === 'moov' ? 'bg-blue-100 border-blue-400 text-blue-900' : 'bg-slate-50 border-gray-200'
-                        }`}
-                      >
-                        Moov Money
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setTopUpMethod('lightning')}
-                        className={`p-2.5 rounded-2xl border text-xs font-bold transition-all flex items-center justify-center gap-1 ${
-                          topUpMethod === 'lightning' ? 'bg-amber-100 border-amber-400 text-amber-900' : 'bg-slate-50 border-gray-200'
-                        }`}
-                      >
-                        <Zap className="w-3.5 h-3.5" /> Lightning
-                      </button>
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isProcessingTopUp}
-                    className="w-full py-3.5 bg-[#059669] hover:bg-[#047857] text-white font-bold rounded-2xl text-sm transition-all cursor-pointer flex items-center justify-center gap-2"
-                  >
-                    {isProcessingTopUp ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                    <span>{isProcessingTopUp ? 'Validation du paiement...' : 'Confirmer la recharge'}</span>
-                  </button>
-                </form>
-              )}
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      <RechargeWalletModal
+        open={activeModal === 'topup'}
+        onClose={() => setActiveModal(null)}
+        onSuccess={(newBal) => {
+          if (typeof newBal === 'number') {
+            setBalance(newBal);
+            if (setSatoshiBalance) {
+              setSatoshiBalance(Math.floor(newBal * 1.6667));
+            }
+          }
+          speakText('Recharge effectuée avec succès. Votre nouveau solde est affiché sur votre portefeuille.');
+        }}
+        currentBalanceXof={balance}
+        patientPhone={patientUser?.phone}
+      />
 
       {/* ---------------------------------------------------- */}
       {/* MODAL 7: DOSSIER MÉDICAL COMPLET                     */}
