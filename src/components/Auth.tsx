@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Patient, HospitalUser, Hospital } from '../types';
 import { HOSPITALS } from '../data';
 import { 
   Phone, Lock, Eye, EyeOff, Fingerprint, 
-    ArrowLeft, ArrowRight, CheckCircle2, ShieldCheck, Mail, 
-  Info, Building2, User, Stethoscope, Award, FileCheck
+  ArrowLeft, ArrowRight, CheckCircle2, ShieldCheck, Mail, 
+  Info, Building2, User, Stethoscope, Award, FileCheck,
+  AlertCircle, CheckCheck
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import SanteLogo from './SanteLogo';
@@ -41,6 +42,8 @@ export default function Auth({
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [signupErrors, setSignupErrors] = useState<Record<string, string>>({});
+  // Tracks which fields the user has touched (typed or blurred)
+  const touchedFields = useRef<Set<string>>(new Set());
 
   // Multi-Step Registration Wizard fields (Steps 1, 2, 3)
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -97,7 +100,13 @@ export default function Auth({
     });
   };
 
+  /** Mark field as touched so success state becomes visible */
+  const touchField = (field: string) => {
+    touchedFields.current.add(field);
+  };
+
   const validateSignupField = (field: string, value: string, label: string, options: { required?: boolean; email?: boolean; phone?: boolean; password?: boolean; date?: boolean; minLength?: number } = {}) => {
+    touchField(field);
     const trimmedValue = value.trim();
     if (options.required && !trimmedValue) {
       setSignupFieldError(field, `${label} est obligatoire.`);
@@ -108,11 +117,11 @@ export default function Auth({
       return true;
     }
     if (options.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedValue)) {
-      setSignupFieldError(field, 'Saisissez une adresse email valide.');
+      setSignupFieldError(field, 'Saisissez une adresse email valide (ex: vous@exemple.com).');
       return false;
     }
-    if (options.phone && !/^(?:\+229[\s.-]?)?(?:[2-9]\d{7}|\d{8})$/.test(trimmedValue.replace(/\s/g, ''))) {
-      setSignupFieldError(field, 'Saisissez un numéro béninois valide à 8 chiffres.');
+    if (options.phone && !/^(?:\+229[\s.-]?)?(?:01\d{8}|\d{10})$/.test(trimmedValue.replace(/\s/g, ''))) {
+      setSignupFieldError(field, 'Numéro béninois invalide. Format attendu: +229 01 97 00 00 00 (10 chiffres).');
       return false;
     }
     if (options.password && value.length < 8) {
@@ -124,18 +133,68 @@ export default function Auth({
       return false;
     }
     if (options.date && new Date(`${value}T00:00:00`) > new Date()) {
-      setSignupFieldError(field, 'La date ne peut pas être dans le futur.');
+      setSignupFieldError(field, 'La date de naissance ne peut pas être dans le futur.');
       return false;
     }
     setSignupFieldError(field, '');
     return true;
   };
 
-  const showSignupError = (field: string) => signupErrors[field] && (
-    <p className="mt-1 text-[11px] font-semibold text-red-600">{signupErrors[field]}</p>
+  /**
+   * Returns the CSS class string to apply to the input/select element.
+   * - field-error : red border + red bg   (when there is a validation error)
+   * - field-success: green border + green bg (when field is touched & valid)
+   * - empty string  : neutral state (not yet touched)
+   */
+  const getFieldClass = (field: string): string => {
+    if (signupErrors[field]) return 'field-error';
+    if (touchedFields.current.has(field) && !signupErrors[field]) return 'field-success';
+    return '';
+  };
+
+  /**
+   * Renders the feedback row beneath a form field.
+   * Shows an animated error message with AlertCircle icon, or a
+   * subtle success check when the field is touched and valid.
+   */
+  const renderFieldFeedback = (field: string, successLabel?: string) => {
+    if (signupErrors[field]) {
+      return (
+        <p className="field-error-msg" role="alert" aria-live="polite">
+          <AlertCircle aria-hidden="true" />
+          <span>{signupErrors[field]}</span>
+        </p>
+      );
+    }
+    if (touchedFields.current.has(field) && successLabel) {
+      return (
+        <p className="field-success-msg">
+          <CheckCheck aria-hidden="true" />
+          <span>{successLabel}</span>
+        </p>
+      );
+    }
+    return null;
+  };
+
+  /**
+   * Encapsule un champ input dans un wrapper relatif avec affichage immédiat
+   * de l'icône d'alerte (erreur) ou de la coche de confirmation (succès)
+   */
+  const renderFieldWithIcon = (field: string, inputElement: React.ReactNode) => (
+    <div className="field-wrapper">
+      {inputElement}
+      {signupErrors[field] ? (
+        <AlertCircle className="field-alert-icon" aria-hidden="true" />
+      ) : touchedFields.current.has(field) ? (
+        <CheckCheck className="field-valid-icon" aria-hidden="true" />
+      ) : null}
+    </div>
   );
 
-  const inputWithError = (field: string) => signupErrors[field] ? 'border-red-400 focus:border-red-500' : '';
+  // Keep old name as alias so existing call-sites work during migration
+  const showSignupError = renderFieldFeedback;
+  const inputWithError = (field: string) => getFieldClass(field);
 
   const applyRegistrationServerError = (message: string, role: 'patient' | 'doctor' | 'hospital') => {
     const normalized = message.toLowerCase();
@@ -638,7 +697,7 @@ export default function Auth({
                     type="text"
                     value={patientPhone}
                     onChange={(e) => setPatientPhone(e.target.value)}
-                    placeholder="email@exemple.com ou +229 00 00 00 00"
+                    placeholder="email@exemple.com ou +229 01 00 00 00 00"
                     required
                     className="w-full pl-10 pr-3 py-3 bg-white border border-gray-200 rounded-2xl text-xs sm:text-sm font-sans focus:outline-none focus:border-emerald-500"
                   />
@@ -926,27 +985,33 @@ export default function Auth({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-bold text-gray-700 mb-1">Nom de famille</label>
-                      <input
-                        type="text"
-                        value={patientLastName}
-                        onChange={(e) => { setPatientLastName(e.target.value); validateSignupField('patientLastName', e.target.value, 'Le nom', { required: true, minLength: 2 }); }}
-                        onBlur={() => validateSignupField('patientLastName', patientLastName, 'Le nom', { required: true, minLength: 2 })}
-                        placeholder="Ex: Dupont"
-                        className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs sm:text-sm font-sans ${inputWithError('patientLastName')}`}
-                      />
-                      {showSignupError('patientLastName')}
+                      {renderFieldWithIcon(
+                        'patientLastName',
+                        <input
+                          type="text"
+                          value={patientLastName}
+                          onChange={(e) => { setPatientLastName(e.target.value); validateSignupField('patientLastName', e.target.value, 'Le nom', { required: true, minLength: 2 }); }}
+                          onBlur={() => validateSignupField('patientLastName', patientLastName, 'Le nom', { required: true, minLength: 2 })}
+                          placeholder="Ex: Dupont"
+                          className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs sm:text-sm font-sans pr-10 ${inputWithError('patientLastName')}`}
+                        />
+                      )}
+                      {showSignupError('patientLastName', 'Nom enregistré.')}
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-gray-700 mb-1">Prénom(s)</label>
-                      <input
-                        type="text"
-                        value={patientFirstName}
-                        onChange={(e) => { setPatientFirstName(e.target.value); validateSignupField('patientFirstName', e.target.value, 'Le prénom', { required: true, minLength: 2 }); }}
-                        onBlur={() => validateSignupField('patientFirstName', patientFirstName, 'Le prénom', { required: true, minLength: 2 })}
-                        placeholder="Ex: Jean"
-                        className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs sm:text-sm font-sans ${inputWithError('patientFirstName')}`}
-                      />
-                      {showSignupError('patientFirstName')}
+                      {renderFieldWithIcon(
+                        'patientFirstName',
+                        <input
+                          type="text"
+                          value={patientFirstName}
+                          onChange={(e) => { setPatientFirstName(e.target.value); validateSignupField('patientFirstName', e.target.value, 'Le prénom', { required: true, minLength: 2 }); }}
+                          onBlur={() => validateSignupField('patientFirstName', patientFirstName, 'Le prénom', { required: true, minLength: 2 })}
+                          placeholder="Ex: Jean"
+                          className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs sm:text-sm font-sans pr-10 ${inputWithError('patientFirstName')}`}
+                        />
+                      )}
+                      {showSignupError('patientFirstName', 'Prénom enregistré.')}
                     </div>
                   </div>
 
@@ -995,58 +1060,125 @@ export default function Auth({
                 <div className="space-y-4">
                   <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1">Adresse email personnelle</label>
-                    <input
-                      type="email"
-                      value={signupPatientEmail}
-                      onChange={(e) => { setSignupPatientEmail(e.target.value); validateSignupField('signupPatientEmail', e.target.value, "L'email", { required: true, email: true }); }}
-                      onBlur={() => validateSignupField('signupPatientEmail', signupPatientEmail, "L'email", { required: true, email: true })}
-                      placeholder="vous@exemple.com"
-                      className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs sm:text-sm ${inputWithError('signupPatientEmail')}`}
-                    />
-                    {showSignupError('signupPatientEmail')}
+                    {renderFieldWithIcon(
+                      'signupPatientEmail',
+                      <input
+                        type="email"
+                        value={signupPatientEmail}
+                        onChange={(e) => { setSignupPatientEmail(e.target.value); validateSignupField('signupPatientEmail', e.target.value, "L'email", { required: true, email: true }); }}
+                        onBlur={() => validateSignupField('signupPatientEmail', signupPatientEmail, "L'email", { required: true, email: true })}
+                        placeholder="vous@exemple.com"
+                        className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs sm:text-sm pr-10 ${inputWithError('signupPatientEmail')}`}
+                      />
+                    )}
+                    {showSignupError('signupPatientEmail', 'Adresse email valide.')}
                     <p className="mt-1 text-[11px] text-gray-500">Utilisé pour vous identifier et récupérer votre mot de passe.</p>
                   </div>
 
                   <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1">Numéro de téléphone mobile</label>
-                    <input
-                      type="text"
-                      value={signupPatientPhone}
-                      onChange={(e) => { setSignupPatientPhone(e.target.value); validateSignupField('signupPatientPhone', e.target.value, 'Le téléphone', { required: true, phone: true }); }}
-                      onBlur={() => validateSignupField('signupPatientPhone', signupPatientPhone, 'Le téléphone', { required: true, phone: true })}
-                      placeholder="+229 97 00 00 00"
-                      className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs sm:text-sm ${inputWithError('signupPatientPhone')}`}
-                    />
-                    {showSignupError('signupPatientPhone')}
+                    {renderFieldWithIcon(
+                      'signupPatientPhone',
+                      <input
+                        type="tel"
+                        value={signupPatientPhone}
+                        onChange={(e) => { setSignupPatientPhone(e.target.value); validateSignupField('signupPatientPhone', e.target.value, 'Le téléphone', { required: true, phone: true }); }}
+                        onBlur={() => validateSignupField('signupPatientPhone', signupPatientPhone, 'Le téléphone', { required: true, phone: true })}
+                        placeholder="+229 01 97 00 00 00"
+                        className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs sm:text-sm pr-10 ${inputWithError('signupPatientPhone')}`}
+                      />
+                    )}
+                    {showSignupError('signupPatientPhone', 'Numéro vérifié (10 chiffres).')}
                   </div>
 
                   <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1">Mot de passe (8 caractères minimum)</label>
-                    <input
-                      type="password"
-                      value={patientSignupPassword}
-                      onChange={(e) => { setPatientSignupPassword(e.target.value); validateSignupField('patientSignupPassword', e.target.value, 'Le mot de passe', { required: true, password: true }); }}
-                      onBlur={() => validateSignupField('patientSignupPassword', patientSignupPassword, 'Le mot de passe', { required: true, password: true })}
-                      placeholder="SantePlus2026"
-                      className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs sm:text-sm ${inputWithError('patientSignupPassword')}`}
-                    />
-                    {showSignupError('patientSignupPassword')}
+                    {renderFieldWithIcon(
+                      'patientSignupPassword',
+                      <input
+                        type="password"
+                        value={patientSignupPassword}
+                        onChange={(e) => {
+                          setPatientSignupPassword(e.target.value);
+                          validateSignupField('patientSignupPassword', e.target.value, 'Le mot de passe', { required: true, password: true });
+                          if (patientSignupPasswordConfirmation) {
+                            setSignupFieldError(
+                              'patientSignupPasswordConfirmation',
+                              patientSignupPasswordConfirmation === e.target.value ? '' : 'Les deux mots de passe ne correspondent pas.'
+                            );
+                          }
+                        }}
+                        onBlur={() => validateSignupField('patientSignupPassword', patientSignupPassword, 'Le mot de passe', { required: true, password: true })}
+                        placeholder="SantePlus2026"
+                        className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs sm:text-sm pr-10 ${inputWithError('patientSignupPassword')}`}
+                      />
+                    )}
+                    {showSignupError('patientSignupPassword', 'Mot de passe sécurisé.')}
                   </div>
 
                   <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1">Confirmer le mot de passe</label>
-                    <input type="password" value={patientSignupPasswordConfirmation} onChange={(e) => { setPatientSignupPasswordConfirmation(e.target.value); setSignupFieldError('patientSignupPasswordConfirmation', e.target.value === patientSignupPassword ? '' : 'Les deux mots de passe ne correspondent pas.'); }} onBlur={() => validateSignupField('patientSignupPasswordConfirmation', patientSignupPasswordConfirmation, 'La confirmation', { required: true })} placeholder="Répétez votre mot de passe" className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs sm:text-sm ${inputWithError('patientSignupPasswordConfirmation')}`} />
+                    {renderFieldWithIcon(
+                      'patientSignupPasswordConfirmation',
+                      <input
+                        type="password"
+                        value={patientSignupPasswordConfirmation}
+                        onChange={(e) => {
+                          setPatientSignupPasswordConfirmation(e.target.value);
+                          touchField('patientSignupPasswordConfirmation');
+                          setSignupFieldError(
+                            'patientSignupPasswordConfirmation',
+                            e.target.value === patientSignupPassword ? '' : 'Les deux mots de passe ne correspondent pas.'
+                          );
+                        }}
+                        onBlur={() => {
+                          touchField('patientSignupPasswordConfirmation');
+                          if (!patientSignupPasswordConfirmation) {
+                            setSignupFieldError('patientSignupPasswordConfirmation', 'La confirmation du mot de passe est obligatoire.');
+                          } else if (patientSignupPasswordConfirmation !== patientSignupPassword) {
+                            setSignupFieldError('patientSignupPasswordConfirmation', 'Les deux mots de passe ne correspondent pas.');
+                          } else {
+                            setSignupFieldError('patientSignupPasswordConfirmation', '');
+                          }
+                        }}
+                        placeholder="Répétez votre mot de passe"
+                        className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs sm:text-sm pr-10 ${inputWithError('patientSignupPasswordConfirmation')}`}
+                      />
+                    )}
+                    {showSignupError('patientSignupPasswordConfirmation', 'Les mots de passe correspondent.')}
                   </div>
-
-                  {showSignupError('patientSignupPasswordConfirmation')}
 
                   <div className="border-t border-gray-100 pt-3 space-y-3">
                     <p className="text-xs font-black text-gray-800">Contacts d'urgence</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div><input type="text" value={emergencyContactOneName} onChange={(e) => { setEmergencyContactOneName(e.target.value); validateSignupField('emergencyContactOneName', e.target.value, 'Le nom du contact 1', { required: true }); }} onBlur={() => validateSignupField('emergencyContactOneName', emergencyContactOneName, 'Le nom du contact 1', { required: true })} placeholder="Nom du contact 1" className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs ${inputWithError('emergencyContactOneName')}`} />{showSignupError('emergencyContactOneName')}</div>
-                      <div><input type="tel" value={emergencyContactOnePhone} onChange={(e) => { setEmergencyContactOnePhone(e.target.value); validateSignupField('emergencyContactOnePhone', e.target.value, 'Le téléphone du contact 1', { required: true, phone: true }); }} onBlur={() => validateSignupField('emergencyContactOnePhone', emergencyContactOnePhone, 'Le téléphone du contact 1', { required: true, phone: true })} placeholder="Téléphone du contact 1" className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs ${inputWithError('emergencyContactOnePhone')}`} />{showSignupError('emergencyContactOnePhone')}</div>
-                      <div><input type="text" value={emergencyContactTwoName} onChange={(e) => { setEmergencyContactTwoName(e.target.value); validateSignupField('emergencyContactTwoName', e.target.value, 'Le nom du contact 2', { required: true }); }} onBlur={() => validateSignupField('emergencyContactTwoName', emergencyContactTwoName, 'Le nom du contact 2', { required: true })} placeholder="Nom du contact 2" className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs ${inputWithError('emergencyContactTwoName')}`} />{showSignupError('emergencyContactTwoName')}</div>
-                      <div><input type="tel" value={emergencyContactTwoPhone} onChange={(e) => { setEmergencyContactTwoPhone(e.target.value); validateSignupField('emergencyContactTwoPhone', e.target.value, 'Le téléphone du contact 2', { required: true, phone: true }); }} onBlur={() => validateSignupField('emergencyContactTwoPhone', emergencyContactTwoPhone, 'Le téléphone du contact 2', { required: true, phone: true })} placeholder="Téléphone du contact 2" className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs ${inputWithError('emergencyContactTwoPhone')}`} />{showSignupError('emergencyContactTwoPhone')}</div>
+                      <div>
+                        {renderFieldWithIcon(
+                          'emergencyContactOneName',
+                          <input type="text" value={emergencyContactOneName} onChange={(e) => { setEmergencyContactOneName(e.target.value); validateSignupField('emergencyContactOneName', e.target.value, 'Le nom du contact 1', { required: true }); }} onBlur={() => validateSignupField('emergencyContactOneName', emergencyContactOneName, 'Le nom du contact 1', { required: true })} placeholder="Nom du contact 1" className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs pr-10 ${inputWithError('emergencyContactOneName')}`} />
+                        )}
+                        {showSignupError('emergencyContactOneName')}
+                      </div>
+                      <div>
+                        {renderFieldWithIcon(
+                          'emergencyContactOnePhone',
+                          <input type="tel" value={emergencyContactOnePhone} onChange={(e) => { setEmergencyContactOnePhone(e.target.value); validateSignupField('emergencyContactOnePhone', e.target.value, 'Le téléphone du contact 1', { required: true, phone: true }); }} onBlur={() => validateSignupField('emergencyContactOnePhone', emergencyContactOnePhone, 'Le téléphone du contact 1', { required: true, phone: true })} placeholder="Téléphone du contact 1" className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs pr-10 ${inputWithError('emergencyContactOnePhone')}`} />
+                        )}
+                        {showSignupError('emergencyContactOnePhone')}
+                      </div>
+                      <div>
+                        {renderFieldWithIcon(
+                          'emergencyContactTwoName',
+                          <input type="text" value={emergencyContactTwoName} onChange={(e) => { setEmergencyContactTwoName(e.target.value); validateSignupField('emergencyContactTwoName', e.target.value, 'Le nom du contact 2', { required: true }); }} onBlur={() => validateSignupField('emergencyContactTwoName', emergencyContactTwoName, 'Le nom du contact 2', { required: true })} placeholder="Nom du contact 2" className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs pr-10 ${inputWithError('emergencyContactTwoName')}`} />
+                        )}
+                        {showSignupError('emergencyContactTwoName')}
+                      </div>
+                      <div>
+                        {renderFieldWithIcon(
+                          'emergencyContactTwoPhone',
+                          <input type="tel" value={emergencyContactTwoPhone} onChange={(e) => { setEmergencyContactTwoPhone(e.target.value); validateSignupField('emergencyContactTwoPhone', e.target.value, 'Le téléphone du contact 2', { required: true, phone: true }); }} onBlur={() => validateSignupField('emergencyContactTwoPhone', emergencyContactTwoPhone, 'Le téléphone du contact 2', { required: true, phone: true })} placeholder="Téléphone du contact 2" className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs pr-10 ${inputWithError('emergencyContactTwoPhone')}`} />
+                        )}
+                        {showSignupError('emergencyContactTwoPhone')}
+                      </div>
                     </div>
                   </div>
 
@@ -1115,14 +1247,17 @@ export default function Auth({
                 <div className="space-y-4">
                   <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1">Nom et Prénom du Praticien</label>
-                    <input
-                      type="text"
-                      value={doctorName}
-                      onChange={(e) => { setDoctorName(e.target.value); validateSignupField('doctorName', e.target.value, 'Le nom du praticien', { required: true, minLength: 2 }); }}
-                      onBlur={() => validateSignupField('doctorName', doctorName, 'Le nom du praticien', { required: true, minLength: 2 })}
-                      placeholder="Ex: Dr. Mensah Paul"
-                      className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs sm:text-sm ${inputWithError('doctorName')}`}
-                    />
+                    {renderFieldWithIcon(
+                      'doctorName',
+                      <input
+                        type="text"
+                        value={doctorName}
+                        onChange={(e) => { setDoctorName(e.target.value); validateSignupField('doctorName', e.target.value, 'Le nom du praticien', { required: true, minLength: 2 }); }}
+                        onBlur={() => validateSignupField('doctorName', doctorName, 'Le nom du praticien', { required: true, minLength: 2 })}
+                        placeholder="Ex: Dr. Mensah Paul"
+                        className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs sm:text-sm pr-10 ${inputWithError('doctorName')}`}
+                      />
+                    )}
                     {showSignupError('doctorName')}
                   </div>
 
@@ -1131,14 +1266,17 @@ export default function Auth({
                       <Award className="w-3.5 h-3.5 text-blue-600" />
                       <span>Numéro d'Ordre National des Médecins (ONMB)</span>
                     </label>
-                    <input
-                      type="text"
-                      value={doctorOnmbNumber}
-                      onChange={(e) => { setDoctorOnmbNumber(e.target.value); validateSignupField('doctorOnmbNumber', e.target.value, 'Le numéro ONMB', { required: true, minLength: 4 }); }}
-                      onBlur={() => validateSignupField('doctorOnmbNumber', doctorOnmbNumber, 'Le numéro ONMB', { required: true, minLength: 4 })}
-                      placeholder="Ex: ONMB-2024-4819"
-                      className="w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs font-mono"
-                    />
+                    {renderFieldWithIcon(
+                      'doctorOnmbNumber',
+                      <input
+                        type="text"
+                        value={doctorOnmbNumber}
+                        onChange={(e) => { setDoctorOnmbNumber(e.target.value); validateSignupField('doctorOnmbNumber', e.target.value, 'Le numéro ONMB', { required: true, minLength: 4 }); }}
+                        onBlur={() => validateSignupField('doctorOnmbNumber', doctorOnmbNumber, 'Le numéro ONMB', { required: true, minLength: 4 })}
+                        placeholder="Ex: ONMB-2024-4819"
+                        className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs font-mono pr-10 ${inputWithError('doctorOnmbNumber')}`}
+                      />
+                    )}
                     {showSignupError('doctorOnmbNumber') || <p className="text-[11px] text-gray-400 mt-1">Requis pour attester de votre droit d'exercice médical.</p>}
                   </div>
 
@@ -1169,40 +1307,49 @@ export default function Auth({
                 <div className="space-y-4">
                   <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1">Email Professionnel Médical</label>
-                    <input
-                      type="email"
-                      value={doctorEmail}
-                      onChange={(e) => { setDoctorEmail(e.target.value); validateSignupField('doctorEmail', e.target.value, "L'email professionnel", { required: true, email: true }); }}
-                      onBlur={() => validateSignupField('doctorEmail', doctorEmail, "L'email professionnel", { required: true, email: true })}
-                      placeholder="dr.mensah@chd-atlantique.bj"
-                      className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs ${inputWithError('doctorEmail')}`}
-                    />
+                    {renderFieldWithIcon(
+                      'doctorEmail',
+                      <input
+                        type="email"
+                        value={doctorEmail}
+                        onChange={(e) => { setDoctorEmail(e.target.value); validateSignupField('doctorEmail', e.target.value, "L'email professionnel", { required: true, email: true }); }}
+                        onBlur={() => validateSignupField('doctorEmail', doctorEmail, "L'email professionnel", { required: true, email: true })}
+                        placeholder="dr.mensah@chd-atlantique.bj"
+                        className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs pr-10 ${inputWithError('doctorEmail')}`}
+                      />
+                    )}
                     {showSignupError('doctorEmail')}
                   </div>
 
                   <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1">Téléphone de consultation</label>
-                    <input
-                      type="text"
-                      value={doctorPhone}
-                      onChange={(e) => { setDoctorPhone(e.target.value); validateSignupField('doctorPhone', e.target.value, 'Le téléphone', { required: true, phone: true }); }}
-                      onBlur={() => validateSignupField('doctorPhone', doctorPhone, 'Le téléphone', { required: true, phone: true })}
-                      placeholder="+229 95 00 00 00"
-                      className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs ${inputWithError('doctorPhone')}`}
-                    />
+                    {renderFieldWithIcon(
+                      'doctorPhone',
+                      <input
+                        type="text"
+                        value={doctorPhone}
+                        onChange={(e) => { setDoctorPhone(e.target.value); validateSignupField('doctorPhone', e.target.value, 'Le téléphone', { required: true, phone: true }); }}
+                        onBlur={() => validateSignupField('doctorPhone', doctorPhone, 'Le téléphone', { required: true, phone: true })}
+                        placeholder="+229 01 95 00 00 00"
+                        className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs pr-10 ${inputWithError('doctorPhone')}`}
+                      />
+                    )}
                     {showSignupError('doctorPhone')}
                   </div>
 
                   <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1">Mot de passe sécurisé</label>
-                    <input
-                      type="password"
-                      value={doctorSignupPassword}
-                      onChange={(e) => { setDoctorSignupPassword(e.target.value); validateSignupField('doctorSignupPassword', e.target.value, 'Le mot de passe', { required: true, password: true }); }}
-                      onBlur={() => validateSignupField('doctorSignupPassword', doctorSignupPassword, 'Le mot de passe', { required: true, password: true })}
-                      placeholder="••••••••"
-                      className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs ${inputWithError('doctorSignupPassword')}`}
-                    />
+                    {renderFieldWithIcon(
+                      'doctorSignupPassword',
+                      <input
+                        type="password"
+                        value={doctorSignupPassword}
+                        onChange={(e) => { setDoctorSignupPassword(e.target.value); validateSignupField('doctorSignupPassword', e.target.value, 'Le mot de passe', { required: true, password: true }); }}
+                        onBlur={() => validateSignupField('doctorSignupPassword', doctorSignupPassword, 'Le mot de passe', { required: true, password: true })}
+                        placeholder="••••••••"
+                        className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs pr-10 ${inputWithError('doctorSignupPassword')}`}
+                      />
+                    )}
                     {showSignupError('doctorSignupPassword')}
                   </div>
 
@@ -1219,14 +1366,17 @@ export default function Auth({
                 <div className="space-y-4">
                   <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1">Numéro de Licence d'État MSP</label>
-                    <input
-                      type="text"
-                      value={doctorMspLicense}
-                      onChange={(e) => { setDoctorMspLicense(e.target.value); validateSignupField('doctorMspLicense', e.target.value, 'La licence MSP', { required: true, minLength: 4 }); }}
-                      onBlur={() => validateSignupField('doctorMspLicense', doctorMspLicense, 'La licence MSP', { required: true, minLength: 4 })}
-                      placeholder="LIC-MSP-BENIN-XXXX"
-                      className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs font-mono ${inputWithError('doctorMspLicense')}`}
-                    />
+                    {renderFieldWithIcon(
+                      'doctorMspLicense',
+                      <input
+                        type="text"
+                        value={doctorMspLicense}
+                        onChange={(e) => { setDoctorMspLicense(e.target.value); validateSignupField('doctorMspLicense', e.target.value, 'La licence MSP', { required: true, minLength: 4 }); }}
+                        onBlur={() => validateSignupField('doctorMspLicense', doctorMspLicense, 'La licence MSP', { required: true, minLength: 4 })}
+                        placeholder="LIC-MSP-BENIN-XXXX"
+                        className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs font-mono pr-10 ${inputWithError('doctorMspLicense')}`}
+                      />
+                    )}
                     {showSignupError('doctorMspLicense')}
                   </div>
 
@@ -1260,27 +1410,33 @@ export default function Auth({
                 <div className="space-y-4">
                   <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1">Nom du Directeur / Responsable</label>
-                    <input
-                      type="text"
-                      value={directorName}
-                      onChange={(e) => { setDirectorName(e.target.value); validateSignupField('directorName', e.target.value, 'Le nom du responsable', { required: true, minLength: 2 }); }}
-                      onBlur={() => validateSignupField('directorName', directorName, 'Le nom du responsable', { required: true, minLength: 2 })}
-                      placeholder="Ex : Dr. Directeur Dossou"
-                      className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs ${inputWithError('directorName')}`}
-                    />
+                    {renderFieldWithIcon(
+                      'directorName',
+                      <input
+                        type="text"
+                        value={directorName}
+                        onChange={(e) => { setDirectorName(e.target.value); validateSignupField('directorName', e.target.value, 'Le nom du responsable', { required: true, minLength: 2 }); }}
+                        onBlur={() => validateSignupField('directorName', directorName, 'Le nom du responsable', { required: true, minLength: 2 })}
+                        placeholder="Ex : Dr. Directeur Dossou"
+                        className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs pr-10 ${inputWithError('directorName')}`}
+                      />
+                    )}
                     {showSignupError('directorName')}
                   </div>
 
                   <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1">Nom de l'Établissement Hospitalier</label>
-                    <input
-                      type="text"
-                      value={directorHospitalName}
-                      onChange={(e) => { setDirectorHospitalName(e.target.value); validateSignupField('directorHospitalName', e.target.value, "Le nom de l'établissement", { required: true, minLength: 3 }); }}
-                      onBlur={() => validateSignupField('directorHospitalName', directorHospitalName, "Le nom de l'établissement", { required: true, minLength: 3 })}
-                      placeholder="Ex : Hôpital de Zone d'Abomey-Calavi"
-                      className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs ${inputWithError('directorHospitalName')}`}
-                    />
+                    {renderFieldWithIcon(
+                      'directorHospitalName',
+                      <input
+                        type="text"
+                        value={directorHospitalName}
+                        onChange={(e) => { setDirectorHospitalName(e.target.value); validateSignupField('directorHospitalName', e.target.value, "Le nom de l'établissement", { required: true, minLength: 3 }); }}
+                        onBlur={() => validateSignupField('directorHospitalName', directorHospitalName, "Le nom de l'établissement", { required: true, minLength: 3 })}
+                        placeholder="Ex : Hôpital de Zone d'Abomey-Calavi"
+                        className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs pr-10 ${inputWithError('directorHospitalName')}`}
+                      />
+                    )}
                     {showSignupError('directorHospitalName')}
                   </div>
 
@@ -1289,14 +1445,17 @@ export default function Auth({
                       <FileCheck className="w-3.5 h-3.5 text-orange-600" />
                       <span>Numéro d'Agrément Officiel MSP</span>
                     </label>
-                    <input
-                      type="text"
-                      value={directorMspAgreement}
-                      onChange={(e) => { setDirectorMspAgreement(e.target.value); validateSignupField('directorMspAgreement', e.target.value, "L'agrément MSP", { required: true, minLength: 4 }); }}
-                      onBlur={() => validateSignupField('directorMspAgreement', directorMspAgreement, "L'agrément MSP", { required: true, minLength: 4 })}
-                      placeholder="Ex : MSP-AGR-2024-091"
-                      className="w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs font-mono"
-                    />
+                    {renderFieldWithIcon(
+                      'directorMspAgreement',
+                      <input
+                        type="text"
+                        value={directorMspAgreement}
+                        onChange={(e) => { setDirectorMspAgreement(e.target.value); validateSignupField('directorMspAgreement', e.target.value, "L'agrément MSP", { required: true, minLength: 4 }); }}
+                        onBlur={() => validateSignupField('directorMspAgreement', directorMspAgreement, "L'agrément MSP", { required: true, minLength: 4 })}
+                        placeholder="Ex : MSP-AGR-2024-091"
+                        className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs font-mono pr-10 ${inputWithError('directorMspAgreement')}`}
+                      />
+                    )}
                     {showSignupError('directorMspAgreement') || <p className="text-[11px] text-gray-400 mt-1">Atteste de l'autorisation d'ouverture et d'exploitation du Ministère.</p>}
                   </div>
 
@@ -1330,27 +1489,33 @@ export default function Auth({
 
                   <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1">Adresse Physique</label>
-                    <input
-                      type="text"
-                      value={directorAddress}
-                      onChange={(e) => { setDirectorAddress(e.target.value); validateSignupField('directorAddress', e.target.value, "L'adresse", { required: true, minLength: 3 }); }}
-                      onBlur={() => validateSignupField('directorAddress', directorAddress, "L'adresse", { required: true, minLength: 3 })}
-                      placeholder="Abomey-Calavi, Quartier..."
-                      className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs ${inputWithError('directorAddress')}`}
-                    />
+                    {renderFieldWithIcon(
+                      'directorAddress',
+                      <input
+                        type="text"
+                        value={directorAddress}
+                        onChange={(e) => { setDirectorAddress(e.target.value); validateSignupField('directorAddress', e.target.value, "L'adresse", { required: true, minLength: 3 }); }}
+                        onBlur={() => validateSignupField('directorAddress', directorAddress, "L'adresse", { required: true, minLength: 3 })}
+                        placeholder="Abomey-Calavi, Quartier..."
+                        className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs pr-10 ${inputWithError('directorAddress')}`}
+                      />
+                    )}
                     {showSignupError('directorAddress')}
                   </div>
 
                   <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1">Téléphone Direction</label>
-                    <input
-                      type="text"
-                      value={directorPhone}
-                      onChange={(e) => { setDirectorPhone(e.target.value); validateSignupField('directorPhone', e.target.value, 'Le téléphone', { required: true, phone: true }); }}
-                      onBlur={() => validateSignupField('directorPhone', directorPhone, 'Le téléphone', { required: true, phone: true })}
-                      placeholder="+229 90 00 00 00"
-                      className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs ${inputWithError('directorPhone')}`}
-                    />
+                    {renderFieldWithIcon(
+                      'directorPhone',
+                      <input
+                        type="text"
+                        value={directorPhone}
+                        onChange={(e) => { setDirectorPhone(e.target.value); validateSignupField('directorPhone', e.target.value, 'Le téléphone', { required: true, phone: true }); }}
+                        onBlur={() => validateSignupField('directorPhone', directorPhone, 'Le téléphone', { required: true, phone: true })}
+                        placeholder="+229 01 90 00 00 00"
+                        className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs pr-10 ${inputWithError('directorPhone')}`}
+                      />
+                    )}
                     {showSignupError('directorPhone')}
                   </div>
 
@@ -1367,27 +1532,33 @@ export default function Auth({
                 <div className="space-y-4">
                   <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1">Email Officiel Direction</label>
-                    <input
-                      type="email"
-                      value={directorEmail}
-                      onChange={(e) => { setDirectorEmail(e.target.value); validateSignupField('directorEmail', e.target.value, "L'email officiel", { required: true, email: true }); }}
-                      onBlur={() => validateSignupField('directorEmail', directorEmail, "L'email officiel", { required: true, email: true })}
-                      placeholder="direction@hopital.bj"
-                      className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs ${inputWithError('directorEmail')}`}
-                    />
+                    {renderFieldWithIcon(
+                      'directorEmail',
+                      <input
+                        type="email"
+                        value={directorEmail}
+                        onChange={(e) => { setDirectorEmail(e.target.value); validateSignupField('directorEmail', e.target.value, "L'email officiel", { required: true, email: true }); }}
+                        onBlur={() => validateSignupField('directorEmail', directorEmail, "L'email officiel", { required: true, email: true })}
+                        placeholder="direction@hopital.bj"
+                        className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs pr-10 ${inputWithError('directorEmail')}`}
+                      />
+                    )}
                     {showSignupError('directorEmail')}
                   </div>
 
                   <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1">Mot de passe Direction</label>
-                    <input
-                      type="password"
-                      value={directorSignupPassword}
-                      onChange={(e) => { setDirectorSignupPassword(e.target.value); validateSignupField('directorSignupPassword', e.target.value, 'Le mot de passe', { required: true, password: true }); }}
-                      onBlur={() => validateSignupField('directorSignupPassword', directorSignupPassword, 'Le mot de passe', { required: true, password: true })}
-                      placeholder="••••••••"
-                      className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs ${inputWithError('directorSignupPassword')}`}
-                    />
+                    {renderFieldWithIcon(
+                      'directorSignupPassword',
+                      <input
+                        type="password"
+                        value={directorSignupPassword}
+                        onChange={(e) => { setDirectorSignupPassword(e.target.value); validateSignupField('directorSignupPassword', e.target.value, 'Le mot de passe', { required: true, password: true }); }}
+                        onBlur={() => validateSignupField('directorSignupPassword', directorSignupPassword, 'Le mot de passe', { required: true, password: true })}
+                        placeholder="••••••••"
+                        className={`w-full px-3.5 py-2.5 border border-gray-200 rounded-2xl text-xs pr-10 ${inputWithError('directorSignupPassword')}`}
+                      />
+                    )}
                     {showSignupError('directorSignupPassword')}
                   </div>
 

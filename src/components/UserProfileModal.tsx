@@ -203,7 +203,7 @@ export default function UserProfileModal({ isOpen, onClose, patient, onUpdatePat
                       required
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                      placeholder="Ex: +229 97 88 55 44"
+                      placeholder="Ex: +229 01 97 88 55 44"
                       className="w-full pl-9 pr-4 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl font-sans text-xs font-bold text-gray-800 focus:outline-none focus:ring-1 focus:ring-[#059669] focus:bg-white transition-all"
                     />
                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />

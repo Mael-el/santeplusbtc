@@ -120,7 +120,7 @@ router.get('/profile', requireAuth, requireRole('doctor', 'admin'), (req: any, r
         id: doctorId,
         name: hospitalUser?.name || 'Dr. Praticien Santé+',
         email: hospitalUser?.email || req.email || 'medecin@santeplus.bj',
-        phone: hospitalUser?.phone || '+229 97 00 00 00',
+        phone: hospitalUser?.phone || '+229 01 97 00 00 00',
         specialty: hospitalUser?.specialty || 'Médecine Générale',
         npi: hospitalUser?.npi || `BJ-MED-${doctorId.padStart(4, '0')}`,
         hospitalId: hospitalUser?.hospitalId || 'hz-calavi',

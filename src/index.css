@@ -225,6 +225,115 @@ label {
   margin-bottom: 6px;
 }
 
+/* ============================================================
+   5b. VALIDATION FORMULAIRE — ERREURS EN LIGNE
+   (Bordure rouge + fond rouge clair + message avec icône)
+   ============================================================ */
+
+/* Champ en erreur — surcharge !important car la règle globale
+   force toujours border-color: var(--bordure) */
+input.field-error,
+select.field-error,
+textarea.field-error {
+  border-color: #ef4444 !important;
+  background-color: #fff5f5 !important;
+  box-shadow: 0 2px 0 #fecaca !important;
+  color: var(--texte) !important;
+}
+
+input.field-error:focus,
+select.field-error:focus,
+textarea.field-error:focus {
+  border-color: #dc2626 !important;
+  background-color: #fff5f5 !important;
+  box-shadow: 0 2px 0 #fca5a5, 0 0 0 4px rgba(239, 68, 68, 0.14) !important;
+}
+
+/* Champ valide — confirme visuellement la bonne saisie */
+input.field-success,
+select.field-success,
+textarea.field-success {
+  border-color: #00a86b !important;
+  background-color: #f1faf6 !important;
+  box-shadow: 0 2px 0 #c5ebd7 !important;
+}
+
+/* Message d'erreur sous le champ */
+.field-error-msg {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 5px;
+  font-family: var(--font-principale);
+  font-size: 12px;
+  font-weight: 700;
+  color: #dc2626;
+  line-height: 1.4;
+  animation: field-error-in 0.18s var(--ease) both;
+}
+
+.field-error-msg svg {
+  flex-shrink: 0;
+  width: 13px;
+  height: 13px;
+  color: #dc2626;
+}
+
+/* Message de succès sous le champ */
+.field-success-msg {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 5px;
+  font-family: var(--font-principale);
+  font-size: 12px;
+  font-weight: 700;
+  color: #006b40;
+  line-height: 1.4;
+}
+
+.field-success-msg svg {
+  flex-shrink: 0;
+  width: 13px;
+  height: 13px;
+  color: #00a86b;
+}
+
+@keyframes field-error-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Indicateur d'alerte positionné à droite dans les champs en erreur */
+.field-wrapper {
+  position: relative;
+  width: 100%;
+  display: block;
+}
+
+.field-wrapper .field-alert-icon {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #ef4444;
+  pointer-events: none;
+  width: 18px;
+  height: 18px;
+  animation: field-error-in 0.18s var(--ease) both;
+}
+
+.field-wrapper .field-valid-icon {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #00a86b;
+  pointer-events: none;
+  width: 18px;
+  height: 18px;
+}
+
 /* Accessibilité du focus */
 *:focus-visible {
   outline: 3px solid var(--vert-400);

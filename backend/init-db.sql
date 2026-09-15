@@ -608,10 +608,10 @@ CREATE INDEX IF NOT EXISTS idx_ipfs_anchors_doc_id ON ipfs_anchors(document_id);
 -- 1. Hôpitaux de référence au Bénin
 INSERT INTO hospitals (id, name, address, city, country, latitude, longitude, type, phone, email, has_emergency, has_blood_bank)
 VALUES
-    (1, 'Hôpital de Zone d''Abomey-Calavi & Sô-Ava', 'Rue de l''Hôpital de Zone, Quartier Sèmè-Podji, Abomey-Calavi', 'Abomey-Calavi', 'Benin', 6.4385, 2.3412, 'public', '+229 21 36 01 22', 'contact@hz-calavi.bj', TRUE, TRUE),
-    (2, 'CHD Atlantique (Hôpital Universitaire)', 'Route Inter-États, Campus UAC, Abomey-Calavi', 'Abomey-Calavi', 'Benin', 6.4182, 2.3395, 'public', '+229 21 36 12 44', 'contact@chd-atlantique.bj', TRUE, TRUE),
-    (3, 'Clinique Privée Sainte-Famille', 'Quartier Zogbadjè, Face 2ème entrée UAC, Abomey-Calavi', 'Abomey-Calavi', 'Benin', 6.4255, 2.3298, 'private', '+229 97 45 11 89', 'contact@saintefamille.bj', TRUE, FALSE),
-    (4, 'Centre National Hospitalier et Universitaire Hubert K. Maga (CNHU-HKM)', 'Avenue Jean-Paul II, Cotonou', 'Cotonou', 'Benin', 6.3639, 2.4183, 'public', '+229 21 30 01 55', 'direction@cnhu.bj', TRUE, TRUE)
+    (1, 'Hôpital de Zone d''Abomey-Calavi & Sô-Ava', 'Rue de l''Hôpital de Zone, Quartier Sèmè-Podji, Abomey-Calavi', 'Abomey-Calavi', 'Benin', 6.4385, 2.3412, 'public', '+229 01 21 36 01 22', 'contact@hz-calavi.bj', TRUE, TRUE),
+    (2, 'CHD Atlantique (Hôpital Universitaire)', 'Route Inter-États, Campus UAC, Abomey-Calavi', 'Abomey-Calavi', 'Benin', 6.4182, 2.3395, 'public', '+229 01 21 36 12 44', 'contact@chd-atlantique.bj', TRUE, TRUE),
+    (3, 'Clinique Privée Sainte-Famille', 'Quartier Zogbadjè, Face 2ème entrée UAC, Abomey-Calavi', 'Abomey-Calavi', 'Benin', 6.4255, 2.3298, 'private', '+229 01 97 45 11 89', 'contact@saintefamille.bj', TRUE, FALSE),
+    (4, 'Centre National Hospitalier et Universitaire Hubert K. Maga (CNHU-HKM)', 'Avenue Jean-Paul II, Cotonou', 'Cotonou', 'Benin', 6.3639, 2.4183, 'public', '+229 01 21 30 01 55', 'direction@cnhu.bj', TRUE, TRUE)
 ON CONFLICT (id) DO NOTHING;
 
 SELECT setval('hospitals_id_seq', (SELECT MAX(id) FROM hospitals));
@@ -619,11 +619,11 @@ SELECT setval('hospitals_id_seq', (SELECT MAX(id) FROM hospitals));
 -- 2. Utilisateurs administratifs et praticiens de départ
 INSERT INTO users (id, email, phone, password_hash, role)
 VALUES
-    (1, 'admin@santeplus.bj', '+229 21 00 00 01', '$2b$10$BmyP6HBNJrVaUzvt37Kl5OSqWxYY3ac31nXY5WrOfdwA//05HilgS', 'admin'),
-    (2, 'direction@hz-calavi.bj', '+229 21 36 01 20', '$2b$10$8DMwuun/n6XdAIsKVtjg8OPlkVXfU3mLIV8dB2hO6s.OLZszRsATO', 'admin'),
-    (3, 'dr.sossou@hz-calavi.bj', '+229 97 88 55 44', '$2b$10$k9.QpoG34Smk85Vo6NDd9uB0Hoa5iY.iI273l/9EvhTzw6WvB173S', 'doctor'),
-    (4, 'medecin.demo@santeplus.bj', '+229 97 00 00 04', '$2b$10$/AtZ4V5bprp1w7OVUDGG9O8.8hCqvZMGXmc08WgrimOhkxHyQLh9m', 'doctor'),
-    (5, 'hopital.demo@santeplus.bj', '+229 97 00 00 05', '$2b$10$I1Kd7dMU0VYEOQLpMwkkQeyHYo4akz51xbb2j0rbJJ0mY67BVEkEq', 'admin')
+    (1, 'admin@santeplus.bj', '+229 01 21 00 00 01', '$2b$10$BmyP6HBNJrVaUzvt37Kl5OSqWxYY3ac31nXY5WrOfdwA//05HilgS', 'admin'),
+    (2, 'direction@hz-calavi.bj', '+229 01 21 36 01 20', '$2b$10$8DMwuun/n6XdAIsKVtjg8OPlkVXfU3mLIV8dB2hO6s.OLZszRsATO', 'admin'),
+    (3, 'dr.sossou@hz-calavi.bj', '+229 01 97 88 55 44', '$2b$10$k9.QpoG34Smk85Vo6NDd9uB0Hoa5iY.iI273l/9EvhTzw6WvB173S', 'doctor'),
+    (4, 'medecin.demo@santeplus.bj', '+229 01 97 00 00 04', '$2b$10$/AtZ4V5bprp1w7OVUDGG9O8.8hCqvZMGXmc08WgrimOhkxHyQLh9m', 'doctor'),
+    (5, 'hopital.demo@santeplus.bj', '+229 01 97 00 00 05', '$2b$10$I1Kd7dMU0VYEOQLpMwkkQeyHYo4akz51xbb2j0rbJJ0mY67BVEkEq', 'admin')
 ON CONFLICT (email) DO NOTHING;
 
 SELECT setval('users_id_seq', (SELECT MAX(id) FROM users));

@@ -149,7 +149,7 @@ export async function resolvePatientIdentity(identifier: string): Promise<Patien
       userId: Number(docPatient.id) || 101,
       patientId: String(docPatient.id),
       email: `${normalize(docPatient.name)}@patient.santeplus.bj`,
-      phone: '+229 97 00 00 01',
+      phone: '+229 01 97 00 00 01',
       npi: docPatient.npi || `BJ${String(docPatient.id).padStart(11, '0')}`,
     };
   }

@@ -215,7 +215,7 @@ export default function WalletTab({
           donorName: fullName,
           bloodType: bloodGroup,
           quantity: 450,
-          donorPhone: patientUser?.phone || '+229 97 88 55 44'
+          donorPhone: patientUser?.phone || '+229 01 97 88 55 44'
         })
       });
       const data = await res.json();

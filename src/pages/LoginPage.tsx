@@ -61,7 +61,7 @@ export const LoginPage = () => {
             <Input
               label="Numéro de téléphone"
               type="tel"
-              placeholder="+229 97 88 55 44"
+              placeholder="+229 01 97 88 55 44"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               required

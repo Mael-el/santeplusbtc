@@ -36,7 +36,7 @@ export default function PaymentFlow({
   onBack,
   onPaymentComplete,
   userName,
-  patientPhone = '+229 97 88 55 44',
+  patientPhone = '+229 01 97 88 55 44',
   customDocuments = []
 }: PaymentFlowProps) {
   const [step, setStep] = useState<Step>('authorize');
@@ -412,7 +412,7 @@ Statut: ${isPaid ? 'PAYÉ & CERTIFIÉ' : 'EN ATTENTE DE PAIEMENT (SATS ou WALLET
       // Additional doctor details as requested
       doc.setFontSize(8.5);
       doc.setTextColor(lightGray[0], lightGray[1], lightGray[2]);
-      doc.text(`Tél : ${inv.doctorPhone || "+229 95 40 12 34"}`, 20, 94);
+      doc.text(`Tél : ${inv.doctorPhone || "+229 01 95 40 12 34"}`, 20, 94);
       doc.text(`Spécialité : Généraliste Agréé (N° Ordre: 4028-BJ)`, 20, 98);
 
       // Patient Info (Pushed slightly to the right to X = 130)
@@ -423,7 +423,7 @@ Statut: ${isPaid ? 'PAYÉ & CERTIFIÉ' : 'EN ATTENTE DE PAIEMENT (SATS ou WALLET
       doc.setFont('helvetica', 'normal');
       doc.text(`${inv.patientName}`, 130, 73);
       doc.text('Bénin - Citoyen Identifié', 130, 77);
-      doc.text(`Tél : ${inv.patientPhone || "+229 97 88 55 44"}`, 130, 81);
+      doc.text(`Tél : ${inv.patientPhone || "+229 01 97 88 55 44"}`, 130, 81);
 
       // Line separator pushed down to 103 to prevent overlap
       doc.setDrawColor(220, 220, 220);
@@ -1005,7 +1005,7 @@ Statut: ${isPaid ? 'PAYÉ & CERTIFIÉ' : 'EN ATTENTE DE PAIEMENT (SATS ou WALLET
                   <div>
                     <span className="text-gray-400 font-sans block">Patient</span>
                     <strong className="text-gray-800 font-sans font-bold block mt-0.5">{invoice.patientName}</strong>
-                    <span className="text-gray-500 font-mono block mt-0.5">{invoice.patientPhone || "+229 97 88 55 44"}</span>
+                    <span className="text-gray-500 font-mono block mt-0.5">{invoice.patientPhone || "+229 01 97 88 55 44"}</span>
                   </div>
                   <div>
                     <span className="text-gray-400 font-sans block">Établissement émetteur</span>

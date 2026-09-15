@@ -45,14 +45,14 @@ class MobileMoneyService {
     const cleaned = phone.replace(/[^0-9]/g, '');
     let local = cleaned;
 
-    if (cleaned.startsWith('229') && cleaned.length >= 11) {
+    if (cleaned.startsWith('229') && cleaned.length >= 13) {
       local = cleaned.slice(3);
     } else if (cleaned.length === 8) {
       local = cleaned;
     }
 
     const valid = local.length === 8;
-    const normalized = `+229 ${local.slice(0, 2)} ${local.slice(2, 4)} ${local.slice(4, 6)} ${local.slice(6, 8)}`;
+    const normalized = `+229 ${local.slice(0, 2)} ${local.slice(2, 4)} ${local.slice(4, 6)} ${local.slice(6, 8)} ${local.slice(8, 10)}`;
 
     return { normalized, local, valid };
   }
@@ -79,7 +79,7 @@ class MobileMoneyService {
     const { normalized, local, valid } = this.normalizePhoneNumber(phone);
 
     if (!valid || amount <= 0) {
-      throw new Error('Numéro de téléphone béninois (8 chiffres) ou montant invalide.');
+      throw new Error('Numéro de téléphone béninois (10 chiffres) ou montant invalide.');
     }
 
     let operator = request.operator || this.detectOperator(phone);
