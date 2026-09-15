@@ -7,6 +7,8 @@ import WalletTab from './components/WalletTab';
 import Auth from './components/Auth';
 import LandingPage from './components/LandingPage';
 import SanteLogo from './components/SanteLogo';
+import { PatientChatbot } from './components/PatientChatbot';
+import { EmergencyFloatingButton } from './components/EmergencyFloatingButton';
 import { 
   Bell, User, PhoneCall, Wifi, WifiOff, X, ArrowLeft, LogOut,
   ShieldCheck, Activity, Stethoscope, Building2
@@ -659,77 +661,21 @@ export default function App() {
         </Suspense>
       </main>
 
-      {/* Bouton Flottant d'Urgence Médicale (SAMU 15) */}
-      <button
-        onClick={() => {
-          setShowEmergencyModal(true);
-          speakEmergency();
-        }}
-        className={`fixed patient-emergency-button bottom-5 right-5 z-40 px-3.5 py-2.5 rounded-full bg-red-600 hover:bg-red-700 text-white shadow-xl shadow-red-600/30 flex items-center gap-2 font-black text-xs transition-all hover:scale-105 cursor-pointer pulse-emergency border border-red-400 ${patientUser ? 'patient-only-control' : ''}`}
-        title="Bouton Urgence Médicale SAMU 15"
-      >
-        <PhoneCall className="w-4 h-4 animate-bounce shrink-0" />
-        <span className="tracking-wide">URGENCE SAMU 15</span>
-      </button>
-
-      {/* Modal d'Urgence Vitale */}
-      {showEmergencyModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="patient-emergency-modal bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5 text-center"
-          >
-            <div className="w-16 h-16 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto animate-pulse">
-              <PhoneCall className="w-8 h-8" />
-            </div>
-
-            <div>
-              <h3 className="text-xl font-black text-gray-900 font-sans">
-                Urgence Médicale Bénin
-              </h3>
-              <p className="text-xs text-gray-500 font-sans mt-1">
-                Assistance immédiate 24h/24 et géolocalisation des secours
-              </p>
-            </div>
-
-            <div className="space-y-3 pt-2">
-              <a
-                href="tel:15"
-                className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-black rounded-2xl text-base flex items-center justify-center gap-3 transition-all cursor-pointer shadow-md"
-              >
-                <PhoneCall className="w-5 h-5" />
-                <span>Appeler le SAMU (15)</span>
-              </a>
-
-              <a
-                href="tel:118"
-                className="w-full py-3.5 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-2xl text-sm flex items-center justify-center gap-3 transition-all cursor-pointer"
-              >
-                <span>Sapeurs-Pompiers (118)</span>
-              </a>
-
-              <button
-                onClick={() => {
-                  setShowEmergencyModal(false);
-                  setView('map');
-                }}
-                className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-gray-800 font-bold rounded-2xl text-xs transition-all cursor-pointer"
-              >
-                Itinéraire vers l'hôpital le plus proche
-              </button>
-            </div>
-
-            <button
-              onClick={() => setShowEmergencyModal(false)}
-              className="text-xs font-bold text-gray-400 hover:text-gray-600 cursor-pointer pt-2"
-            >
-              Fermer
-            </button>
-          </motion.div>
-        </div>
+      {/* Chatbot Assistant SANTÉ+ (Espace Patient) */}
+      {patientUser && (
+        <PatientChatbot
+          patient={patientUser}
+          onNavigate={(v) => setView(v as AppView)}
+        />
       )}
+
+      {/* Bouton Flottant d'Urgence Médicale — déplaçable, full modal */}
+      <EmergencyFloatingButton
+        patient={patientUser}
+        onNavigateToMap={() => setView('map')}
+        externalOpen={showEmergencyModal}
+        onExternalClose={() => setShowEmergencyModal(false)}
+      />
 
       {/* Modal Profil Patient */}
       {showProfileModal && patientUser && (
