@@ -47,7 +47,18 @@ class DatabaseService {
       };
 
       if (process.env.DATABASE_URL) {
-        this.pool = new Pool({ connectionString: process.env.DATABASE_URL, connectionTimeoutMillis: 4000 });
+        const url = process.env.DATABASE_URL;
+        const requiresSsl = process.env.DB_SSL === 'true' ||
+                            process.env.PGSSLMODE === 'require' ||
+                            url.includes('sslmode=require') ||
+                            url.includes('render.com') ||
+                            url.includes('supabase.co') ||
+                            url.includes('neon.tech');
+        this.pool = new Pool({
+          connectionString: url,
+          connectionTimeoutMillis: 10000,
+          ssl: requiresSsl ? { rejectUnauthorized: false } : undefined,
+        });
       } else {
         this.pool = new Pool(config);
       }

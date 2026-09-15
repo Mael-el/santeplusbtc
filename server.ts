@@ -468,11 +468,15 @@ async function startServer() {
     .split(',')
     .map(origin => origin.trim())
     .filter(Boolean);
+  if (process.env.RENDER_EXTERNAL_URL) {
+    allowedOrigins.push(process.env.RENDER_EXTERNAL_URL.trim());
+  }
   app.use(cors({
     credentials: true,
     origin: (origin, callback) => {
       const isLocalDevelopmentOrigin = /^https?:\/\/(localhost|127\.0\.0\.1|10\.0\.2\.2)(:\d+)?$/.test(origin || '');
-      if (!origin || allowedOrigins.includes(origin) || isLocalDevelopmentOrigin) {
+      const isRenderOrigin = origin ? /^https:\/\/[a-zA-Z0-9-]+\.onrender\.com$/.test(origin) : false;
+      if (!origin || allowedOrigins.includes(origin) || isLocalDevelopmentOrigin || isRenderOrigin) {
         return callback(null, true);
       }
       return callback(new Error('Origin not allowed by CORS'));

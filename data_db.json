@@ -343,5 +343,14 @@
       "name": "Dr. Jean Sossou",
       "id": 3
     }
+  ],
+  "AUTH_USERS_DB": [
+    {
+      "id": 1,
+      "email": "admin@santeplus.bj",
+      "phone": "+229 21 00 00 01",
+      "role": "admin",
+      "password_hash": "$2b$10$MinHavAICQxYELu/rnYHE.evEpPh54R2f0yFlU15GQVXVlsnZKNfq"
+    }
   ]
 }

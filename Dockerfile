@@ -12,6 +12,7 @@ RUN npm ci --no-audit --no-fund --fetch-retries=5 --fetch-retry-mintimeout=20000
 
 # Copy source code and assets
 COPY src ./src
+COPY public ./public
 COPY index.html ./
 COPY backend ./backend
 COPY server.ts ./
