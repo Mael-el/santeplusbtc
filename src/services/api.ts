@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
-import { ApiResponse, AuthResponse, User, AuthRequest, PaymentMethod, WalletRecharge, Invoice } from '../types/index';
+import { ApiResponse, AuthResponse, User, AuthRequest, PaymentMethod, Invoice } from '../types/index';
+import type { WalletRecharge } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -131,18 +132,18 @@ class ApiClient {
     return response.data.data!;
   }
 
-  async forgotPassword(phone: string): Promise<{ message: string }> {
-    const response = await this.client.post<ApiResponse<{ message: string }>>(
-      '/auth/forgot-password',
-      { phone }
+  async forgotPassword(email: string): Promise<{ message: string; devCode?: string }> {
+    const response = await this.client.post<ApiResponse<{ message: string; devCode?: string }>>(
+      '/auth/password-reset/request',
+      { email }
     );
     return response.data.data!;
   }
 
-  async resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
+  async resetPassword(email: string, code: string, newPassword: string): Promise<{ message: string }> {
     const response = await this.client.post<ApiResponse<{ message: string }>>(
-      '/auth/reset-password',
-      { token, newPassword }
+      '/auth/password-reset/confirm',
+      { email, code, newPassword }
     );
     return response.data.data!;
   }

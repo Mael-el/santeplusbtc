@@ -8,6 +8,7 @@ import jwt from 'jsonwebtoken';
 import { PoolClient } from 'pg';
 import { authConfig } from '../services/config.service';
 import { dbService } from '../services/db.service';
+import { sendPasswordResetEmail } from '../services/email.service';
 import { loginRateLimit } from '../middleware/rate-limit.middleware';
 
 const router = Router();
@@ -265,6 +266,37 @@ function validateCredentials(email: unknown, phone: unknown, password: unknown):
   return null;
 }
 
+async function processPasswordResetRequest(email: string): Promise<{ success: true; message: string; devCode?: string }> {
+  const response: { success: true; message: string; devCode?: string } = {
+    success: true,
+    message: 'Si cette adresse correspond à un compte patient, un code de réinitialisation a été envoyé par email.',
+  };
+
+  const user = await findUser({ email });
+  if (!user) {
+    return response;
+  }
+
+  const code = String(crypto.randomInt(100000, 1000000)).padStart(6, '0');
+  passwordResetRequests.set(email, { userId: user.id, code, expiresAt: Date.now() + 15 * 60 * 1000 });
+
+  try {
+    const emailResult = await sendPasswordResetEmail(email, code);
+    if (emailResult.devCode) response.devCode = emailResult.devCode;
+    if (emailResult.message) response.message = emailResult.message;
+    console.info(`[Auth] Password reset requested and email sent to ${email}`);
+  } catch (error: any) {
+    console.error(`[Auth] Email reset failed for ${email}:`, error.message);
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Le service email n’est pas configuré. Contactez l’administrateur.');
+    }
+    response.devCode = code;
+    response.message = 'Code de réinitialisation généré en mode développement.';
+  }
+
+  return response;
+}
+
 function generateTokens(user: AuthUser) {
   const accessToken = jwt.sign(
     { id: user.id, email: user.email, role: user.role },
@@ -428,21 +460,27 @@ router.post('/password-reset/request', asyncHandler(async (req: Request, res: Re
     return res.status(400).json({ success: false, error: 'Adresse email invalide' });
   }
 
-  const user = await findUser({ email });
-  const response: { success: true; message: string; devCode?: string } = {
-    success: true,
-    message: 'Si cette adresse correspond à un patient, un code de réinitialisation a été envoyé.',
-  };
+  try {
+    const response = await processPasswordResetRequest(email);
+    return res.json(response);
+  } catch (error: any) {
+    return res.status(500).json({ success: false, error: error.message || 'Erreur serveur lors de l’envoi du code.' });
+  }
+}));
 
-  if (user) {
-    const code = String(crypto.randomInt(100000, 1000000));
-    passwordResetRequests.set(email, { userId: user.id, code, expiresAt: Date.now() + 15 * 60 * 1000 });
-    // The production email provider can consume this event. Keep the code visible only in local development.
-    if (process.env.NODE_ENV !== 'production') response.devCode = code;
-    console.info(`[Auth] Password reset requested for ${email}`);
+// Compatibilité legacy: ancien appel SMS/phone -> email
+router.post('/forgot-password', asyncHandler(async (req: Request, res: Response) => {
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  if (!/^\S+@\S+\.\S+$/.test(email)) {
+    return res.status(400).json({ success: false, error: 'Adresse email invalide' });
   }
 
-  return res.json(response);
+  try {
+    const response = await processPasswordResetRequest(email);
+    return res.json(response);
+  } catch (error: any) {
+    return res.status(500).json({ success: false, error: error.message || 'Erreur serveur lors de l’envoi du code.' });
+  }
 }));
 
 // POST /api/auth/password-reset/confirm
@@ -469,6 +507,37 @@ router.post('/password-reset/confirm', asyncHandler(async (req: Request, res: Re
     }
   }
   passwordResetRequests.delete(email);
+  return res.json({ success: true, message: 'Mot de passe réinitialisé. Vous pouvez vous connecter.' });
+}));
+
+// Compatibilité legacy: ancien appel reset-password sans email/code
+router.post('/reset-password', asyncHandler(async (req: Request, res: Response) => {
+  const { email, code, newPassword } = req.body || {};
+  if (typeof email !== 'string' || typeof code !== 'string' || typeof newPassword !== 'string') {
+    return res.status(400).json({ success: false, error: 'Email, code et nouveau mot de passe requis.' });
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+  const request = passwordResetRequests.get(normalizedEmail);
+  if (!request || request.expiresAt < Date.now() || request.code !== code.trim()) {
+    return res.status(400).json({ success: false, error: 'Code invalide ou expiré' });
+  }
+
+  const validationError = validateCredentials(normalizedEmail, undefined, newPassword);
+  if (validationError) return res.status(400).json({ success: false, error: validationError });
+
+  if (dbService.getStatus().connected) {
+    await dbService.query('UPDATE users SET password_hash = $1 WHERE id = $2 AND role = \'patient\'', [hashPassword(newPassword), request.userId]);
+  } else {
+    loadAuthUsers();
+    const user = users.find(item => item.id === request.userId && item.role === 'patient');
+    if (user) {
+      user.password_hash = hashPassword(newPassword);
+      saveAuthUsers();
+    }
+  }
+
+  passwordResetRequests.delete(normalizedEmail);
   return res.json({ success: true, message: 'Mot de passe réinitialisé. Vous pouvez vous connecter.' });
 }));
 

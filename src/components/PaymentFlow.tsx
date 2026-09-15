@@ -68,7 +68,7 @@ export default function PaymentFlow({
         {
           id: `doc-consult-${Date.now()}`,
           title: defaultLabel,
-          type: 'consultation',
+          type: 'devis',
           hospitalName: hospital.name,
           hospitalAddress: hospital.address,
           doctorName: getDoctorName(hospital.id),
@@ -76,7 +76,8 @@ export default function PaymentFlow({
             year: 'numeric', month: 'long', day: 'numeric',
           }),
           priceXOF: defaultPrice,
-          items: [{ name: defaultLabel, priceXOF: defaultPrice }],
+          priceSats: Math.round(defaultPrice * XOF_TO_SATS),
+          items: [{ name: defaultLabel, quantity: 1, priceXOF: defaultPrice }],
         } as MedicalDocument,
       ];
     } catch {
@@ -88,8 +89,12 @@ export default function PaymentFlow({
     ...d,
     priceXOF: Number(d?.priceXOF) || 0,
     items: Array.isArray(d?.items) && d.items.length > 0
-      ? d.items.map(it => ({ name: String(it?.name || 'Acte médical'), priceXOF: Number(it?.priceXOF) || 0 }))
-      : [{ name: String(d?.title || 'Acte médical'), priceXOF: Number(d?.priceXOF) || 0 }],
+      ? d.items.map(it => ({
+          name: String(it?.name || 'Acte médical'),
+          priceXOF: Number(it?.priceXOF) || 0,
+          quantity: it?.quantity !== undefined ? Number(it.quantity) : undefined,
+        }))
+      : [{ name: String(d?.title || 'Acte médical'), priceXOF: Number(d?.priceXOF) || 0, quantity: 1 }],
   }));
 
   const safeDocItems = sanitizedDocs.flatMap(doc => doc.items || []);

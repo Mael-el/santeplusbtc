@@ -197,6 +197,7 @@ export type AppView =
   | 'appointments' 
   | 'auth' 
   | 'hospital-dashboard'
+  | 'doctor-dashboard'
   | 'director-admin'
   | 'platform-owner'
   | 'dossier'
