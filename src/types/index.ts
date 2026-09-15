@@ -25,7 +25,8 @@ export interface User {
 }
 
 export interface AuthRequest {
-  phone: string;
+  email?: string;
+  phone?: string;
   password: string;
 }
 

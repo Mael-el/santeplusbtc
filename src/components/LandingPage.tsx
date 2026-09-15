@@ -402,15 +402,22 @@ export default function LandingPage({
     setErrors({});
     setIsSubmitted(false);
 
-    if (role === 'patient') {
-      if (typeof window !== 'undefined') {
-        try {
-          window.location.href = '/inscription-patient';
-          return;
-        } catch {
-          // fallback below
-        }
+    if (typeof window !== 'undefined') {
+      if (role === 'patient') {
+        window.location.href = '/connexion';
+        return;
       }
+      if (role === 'doctor') {
+        window.location.href = '/demande-medecin';
+        return;
+      }
+      if (role === 'hospital') {
+        window.location.href = '/demande-hopital';
+        return;
+      }
+    }
+
+    if (role === 'patient') {
       onSelectRole(role);
     }
   };
@@ -422,12 +429,27 @@ export default function LandingPage({
 
   const handleContinue = () => {
     if (selectedRole === 'patient') {
-      handleRoleSelect('patient');
+      if (typeof window !== 'undefined') {
+        window.location.href = '/connexion';
+        return;
+      }
+      onOpenAuth();
       return;
     }
 
-    if (selectedRole === 'doctor' || selectedRole === 'hospital') {
-      setIsSubmitted(false);
+    if (selectedRole === 'doctor') {
+      if (typeof window !== 'undefined') {
+        window.location.href = '/demande-medecin';
+        return;
+      }
+      return;
+    }
+
+    if (selectedRole === 'hospital') {
+      if (typeof window !== 'undefined') {
+        window.location.href = '/demande-hopital';
+        return;
+      }
       return;
     }
 
@@ -436,12 +458,8 @@ export default function LandingPage({
 
   const handleConnectionClick = () => {
     if (typeof window !== 'undefined') {
-      try {
-        window.location.href = '/connexion';
-        return;
-      } catch {
-        // fallback below
-      }
+      window.location.href = '/connexion';
+      return;
     }
     onOpenAuth();
   };

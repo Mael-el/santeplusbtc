@@ -9,6 +9,12 @@ import LandingPage from './components/LandingPage';
 import SanteLogo from './components/SanteLogo';
 import { PatientChatbot } from './components/PatientChatbot';
 import { EmergencyFloatingButton } from './components/EmergencyFloatingButton';
+import { InstallAppButton } from './components/InstallAppButton';
+import { LoginPage } from './pages/LoginPage';
+import PatientRegistrationPage from './pages/PatientRegistrationPage';
+import { PatientDashboard } from './pages/PatientDashboard';
+import DoctorRequestPage from './pages/DoctorRequestPage';
+import HospitalRequestPage from './pages/HospitalRequestPage';
 import { 
   Bell, User, PhoneCall, Wifi, WifiOff, X, ArrowLeft, LogOut,
   ShieldCheck, Activity, Stethoscope, Building2
@@ -28,6 +34,13 @@ const UserProfileModal = lazy(() => import('./components/UserProfileModal'));
 export default function App() {
   const [view, setView] = useState<AppView>('landing');
   const [selectedHospital, setSelectedHospital] = useState<Hospital | null>(null);
+  const [currentPath, setCurrentPath] = useState<string>(() => typeof window !== 'undefined' ? window.location.pathname : '/');
+
+  useEffect(() => {
+    const syncPath = () => setCurrentPath(window.location.pathname);
+    window.addEventListener('popstate', syncPath);
+    return () => window.removeEventListener('popstate', syncPath);
+  }, []);
 
   // Connection & Offline states
   const [isManualOffline, setIsManualOffline] = useState<boolean>(() => {
@@ -255,6 +268,18 @@ export default function App() {
 
   const handleSelectRoleFromLanding = (role: 'patient' | 'doctor' | 'hospital') => {
     setInitialAuthRole(role);
+    if (role === 'patient') {
+      window.location.href = '/connexion';
+      return;
+    }
+    if (role === 'doctor') {
+      window.location.href = '/demande-medecin';
+      return;
+    }
+    if (role === 'hospital') {
+      window.location.href = '/demande-hopital';
+      return;
+    }
     setView('auth');
   };
 
@@ -292,6 +317,53 @@ export default function App() {
     }
   };
 
+  const normalizedPath = currentPath || window.location.pathname;
+
+  if (normalizedPath === '/connexion') {
+    return (
+      <>
+        <LoginPage />
+        <InstallAppButton />
+      </>
+    );
+  }
+
+  if (normalizedPath === '/inscription-patient' || normalizedPath === '/inscription') {
+    return (
+      <>
+        <PatientRegistrationPage />
+        <InstallAppButton />
+      </>
+    );
+  }
+
+  if (normalizedPath === '/patient/dashboard') {
+    return (
+      <>
+        <PatientDashboard />
+        <InstallAppButton />
+      </>
+    );
+  }
+
+  if (normalizedPath === '/demande-medecin') {
+    return (
+      <>
+        <DoctorRequestPage />
+        <InstallAppButton />
+      </>
+    );
+  }
+
+  if (normalizedPath === '/demande-hopital') {
+    return (
+      <>
+        <HospitalRequestPage />
+        <InstallAppButton />
+      </>
+    );
+  }
+
   // --------------------------------------------------------------------------
   // 1. PAGE AUTH (CONNEXION / INSCRIPTION)
   // --------------------------------------------------------------------------
@@ -314,6 +386,7 @@ export default function App() {
   // --------------------------------------------------------------------------
   return (
     <div className={`min-h-screen flex flex-col font-sans text-[#0F172A] ${patientUser ? 'patient-app' : ''}`}>
+      <InstallAppButton />
       
       {/* En-tête épuré médical : Logo Santé+ et Profil */}
       <header className="patient-app-header bg-white/90 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-40 px-4 sm:px-8 py-2.5 flex items-center justify-between shadow-xs">

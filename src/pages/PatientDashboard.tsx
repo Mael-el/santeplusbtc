@@ -17,17 +17,11 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 
-const patient = {
-  name: 'Patient',
-  email: '',
-  npi: 'NPI non attribué',
-  bloodGroup: 'Non renseigné',
-  allergies: 'Aucune',
-  chronicDiseases: 'Aucune',
-  nextAppointment: 'Aucun rendez-vous',
-  lastConsultation: 'Aucune consultation',
-  wallet: 0,
-};
+const emergencyNumbers = [
+  { label: 'SAMU', value: '15' },
+  { label: 'Pompiers', value: '118' },
+  { label: 'Urgence nationale', value: '112' },
+];
 
 const tabs = [
   { id: 'overview', label: 'Vue d’ensemble' },
@@ -42,6 +36,26 @@ type TabId = (typeof tabs)[number]['id'];
 
 export const PatientDashboard = () => {
   const [activeTab, setActiveTab] = useState<TabId>('overview');
+
+  const patient = useMemo(() => {
+    const storedUser = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || 'null') : null;
+    const storedProfile = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('sante_patient_profile') || 'null') : null;
+    const fullName = [storedUser?.firstName, storedUser?.lastName, storedProfile?.firstName, storedProfile?.lastName]
+      .filter(Boolean)
+      .join(' ') || 'Patient';
+
+    return {
+      name: fullName,
+      email: storedUser?.email || '',
+      npi: storedUser?.npi || 'NPI non attribué',
+      bloodGroup: storedUser?.bloodGroup || storedProfile?.bloodGroup || 'Non renseigné',
+      allergies: storedProfile?.allergies || 'Aucune',
+      chronicDiseases: 'Aucune',
+      nextAppointment: 'Aucun rendez-vous',
+      lastConsultation: 'Aucune consultation',
+      wallet: 0,
+    };
+  }, []);
 
   const quickStats = useMemo(
     () => [
@@ -114,6 +128,18 @@ export const PatientDashboard = () => {
             <div className="flex justify-between gap-3"><span className="text-slate-500">Maladies chroniques</span><span className="font-bold text-slate-900">{patient.chronicDiseases}</span></div>
             <div className="flex justify-between gap-3"><span className="text-slate-500">Prochain RDV</span><span className="font-bold text-slate-900 text-right">{patient.nextAppointment}</span></div>
             <div className="flex justify-between gap-3"><span className="text-slate-500">Dernière consultation</span><span className="font-bold text-slate-900 text-right">{patient.lastConsultation}</span></div>
+          </div>
+
+          <div className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 p-3">
+            <p className="text-xs font-black uppercase tracking-[0.12em] text-rose-700">Numéros d’urgence</p>
+            <div className="mt-3 space-y-2">
+              {emergencyNumbers.map(({ label, value }) => (
+                <div key={label} className="flex items-center justify-between rounded-xl bg-white px-3 py-2 text-sm">
+                  <span className="font-semibold text-slate-700">{label}</span>
+                  <span className="font-black text-rose-700">{value}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
