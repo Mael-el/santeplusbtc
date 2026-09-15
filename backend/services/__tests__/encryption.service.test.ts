@@ -19,4 +19,11 @@ describe('medical document encryption', () => {
     process.env.ENCRYPTION_KEY = 'invalid';
     expect(() => encryptJson({ patientId: 'patient-1' })).toThrow(/32 bytes/);
   });
+
+  it('supports 32-character keys generated automatically by Render', () => {
+    process.env.ENCRYPTION_KEY = '12345678901234567890123456789012';
+    const document = { patientId: 'patient-2', note: 'secret-render' };
+    const encrypted = encryptJson(document);
+    expect(decryptJson<typeof document>(encrypted)).toEqual(document);
+  });
 });

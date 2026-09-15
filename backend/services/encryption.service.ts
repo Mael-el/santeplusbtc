@@ -9,15 +9,25 @@ function getEncryptionKey(): Buffer {
     throw new Error('ENCRYPTION_KEY must be configured to protect medical data');
   }
 
-  const key = /^[0-9a-fA-F]{64}$/.test(configuredKey)
-    ? Buffer.from(configuredKey, 'hex')
-    : Buffer.from(configuredKey, 'base64');
-
-  if (key.length !== 32) {
-    throw new Error('ENCRYPTION_KEY must be exactly 32 bytes in hex or base64');
+  if (/^[0-9a-fA-F]{64}$/.test(configuredKey)) {
+    return Buffer.from(configuredKey, 'hex');
   }
 
-  return key;
+  const base64Key = Buffer.from(configuredKey, 'base64');
+  if (base64Key.length === 32 && configuredKey.length === 44) {
+    return base64Key;
+  }
+
+  const utf8Key = Buffer.from(configuredKey, 'utf8');
+  if (utf8Key.length === 32) {
+    return utf8Key;
+  }
+
+  if (base64Key.length === 32) {
+    return base64Key;
+  }
+
+  throw new Error('ENCRYPTION_KEY must be exactly 32 bytes in hex or base64');
 }
 
 export interface EncryptedPayload {

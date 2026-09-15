@@ -24,30 +24,29 @@ services:
       # Origines CORS autorisées
       - key: CORS_ORIGINS
         value: https://santeplus-api.onrender.com
-      # IA Gemini (optionnel, fallback local si absent)
-      - key: GEMINI_API_KEY
-        sync: false
-      # Google Maps (optionnel, OpenStreetMap par défaut)
-      - key: GOOGLE_MAPS_PLATFORM_KEY
-        sync: false
-      # IPFS / Pinata pour les documents médicaux décentralisés (optionnel)
-      - key: PINATA_API_KEY
-        sync: false
-      - key: PINATA_SECRET_API_KEY
-        sync: false
-      # Paiements Lightning Bitcoin (optionnel)
-      - key: LIGHTNING_PROVIDER
-        value: lnbits
-      - key: LNBITS_API_KEY
-        sync: false
-      # Paiements Mobile Money FedaPay (optionnel)
-      - key: FIAT_PROVIDER
-        value: fedapay
-      - key: FEDAPAY_SECRET_KEY
-        sync: false
-      # MongoDB (optionnel, fallback automatique sur PostgreSQL)
-      - key: MONGODB_URI
-        sync: false
+
+      # -------------------------------------------------------------
+      # Variables optionnelles (commentées pour déploiement immédiat)
+      # À ajouter directement depuis le Dashboard Render si nécessaire
+      # -------------------------------------------------------------
+      # - key: GEMINI_API_KEY
+      #   sync: false
+      # - key: GOOGLE_MAPS_PLATFORM_KEY
+      #   sync: false
+      # - key: PINATA_API_KEY
+      #   sync: false
+      # - key: PINATA_SECRET_API_KEY
+      #   sync: false
+      # - key: LIGHTNING_PROVIDER
+      #   value: lnbits
+      # - key: LNBITS_API_KEY
+      #   sync: false
+      # - key: FIAT_PROVIDER
+      #   value: fedapay
+      # - key: FEDAPAY_SECRET_KEY
+      #   sync: false
+      # - key: MONGODB_URI
+      #   sync: false
 
 databases:
   - name: santeplus-postgres
